@@ -1,612 +1,1579 @@
-{% extends "base.html" %}
-
-{% block title %}Analytics - Gujarat Coastal Alert System{% endblock %}
-
-{% block extra_css %}
-<style>
-    .chart-container {
-        background: rgba(255,255,255,0.02);
-        border-radius: 16px;
-        padding: 25px;
-        margin-bottom: 20px;
-        position: relative;
-    }
-
-    .chart-title {
-        font-weight: 800;
-        font-size: 18px;
-        margin-bottom: 20px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .stats-overview {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-
-    .stat-box {
-        background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-        border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 16px;
-        padding: 25px;
-        text-align: center;
-        transition: var(--transition);
-    }
-
-    .stat-box:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-
-    .stat-number {
-        font-size: 32px;
-        font-weight: 900;
-        margin-bottom: 8px;
-    }
-
-    .stat-label {
-        color: var(--muted);
-        font-weight: 600;
-        font-size: 14px;
-    }
-
-    .trend-indicator {
-        font-size: 12px;
-        font-weight: 700;
-        margin-top: 5px;
-    }
-
-    .trend-up { color: var(--accent-red); }
-    .trend-down { color: var(--accent-green); }
-    .trend-stable { color: var(--accent-blue); }
-
-    .chart-placeholder {
-        height: 300px;
-        background: rgba(255,255,255,0.02);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 2px dashed rgba(255,255,255,0.1);
-        color: var(--muted);
-    }
-
-    .legend {
-        display: flex;
-        gap: 20px;
-        justify-content: center;
-        margin-top: 15px;
-        flex-wrap: wrap;
-    }
-
-    .legend-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 14px;
-    }
-
-    .legend-color {
-        width: 16px;
-        height: 16px;
-        border-radius: 4px;
-    }
-
-    .filter-tabs {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-        background: rgba(255,255,255,0.03);
-        border-radius: 12px;
-        padding: 8px;
-    }
-
-    .filter-tab {
-        padding: 10px 20px;
-        border-radius: 8px;
-        background: transparent;
-        border: none;
-        color: var(--muted);
-        font-weight: 600;
-        cursor: pointer;
-        transition: var(--transition);
-    }
-
-    .filter-tab.active {
-        background: var(--accent-blue);
-        color: white;
-    }
-
-    .filter-tab:hover:not(.active) {
-        background: rgba(255,255,255,0.05);
-        color: var(--text);
-    }
-
-    .insights-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 20px;
-        margin-top: 30px;
-    }
-
-    .insight-card {
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 16px;
-        padding: 25px;
-        transition: var(--transition);
-    }
-
-    .insight-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 15px 50px rgba(0,0,0,0.2);
-    }
-
-    .insight-title {
-        font-weight: 800;
-        font-size: 16px;
-        margin-bottom: 15px;
-        color: var(--accent-blue);
-    }
-
-    .insight-content {
-        color: var(--muted);
-        line-height: 1.6;
-    }
-
-    .top-locations {
-        list-style: none;
-        padding: 0;
-    }
-
-    .top-locations li {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 10px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-
-    .top-locations li:last-child {
-        border-bottom: none;
-    }
-
-    .location-name {
-        font-weight: 600;
-    }
-
-    .location-count {
-        background: var(--accent-blue);
-        color: white;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 12px;
-        font-weight: 700;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-    <div>
-        <h1 style="font-size: 32px; font-weight: 900; margin-bottom: 8px;">Analytics Dashboard</h1>
-        <p class="text-muted">Comprehensive analysis of coastal alert patterns and trends</p>
-    </div>
-    <div style="display: flex; gap: 15px;">
-        <button class="btn btn-secondary" onclick="exportAnalytics()">
-            📊 Export Report
-        </button>
-        <button class="btn btn-primary" onclick="refreshAnalytics()">
-            🔄 Refresh Data
-        </button>
-    </div>
-</div>
-
-<!-- Statistics Overview -->
-<div class="stats-overview" id="stats-overview">
-    <div class="stat-box">
-        <div class="stat-number" style="color: var(--accent-blue);" id="total-alerts">0</div>
-        <div class="stat-label">Total Alerts</div>
-        <div class="trend-indicator trend-up" id="total-trend">+12% this week</div>
-    </div>
-    
-    <div class="stat-box">
-        <div class="stat-number" style="color: var(--accent-red);" id="critical-alerts">0</div>
-        <div class="stat-label">Critical Alerts</div>
-        <div class="trend-indicator trend-down" id="critical-trend">-5% this week</div>
-    </div>
-    
-    <div class="stat-box">
-        <div class="stat-number" style="color: var(--accent-yellow);" id="avg-response">0</div>
-        <div class="stat-label">Avg Response Time</div>
-        <div class="trend-indicator trend-stable" id="response-trend">Stable</div>
-    </div>
-    
-    <div class="stat-box">
-        <div class="stat-number" style="color: var(--accent-green);" id="resolution-rate">0%</div>
-        <div class="stat-label">Resolution Rate</div>
-        <div class="trend-indicator trend-up" id="resolution-trend">+8% this week</div>
-    </div>
-</div>
-
-<!-- Time Period Filters -->
-<div class="filter-tabs">
-    <button class="filter-tab active" onclick="changePeriod('7d', this)">Last 7 Days</button>
-    <button class="filter-tab" onclick="changePeriod('30d', this)">Last 30 Days</button>
-    <button class="filter-tab" onclick="changePeriod('90d', this)">Last 3 Months</button>
-    <button class="filter-tab" onclick="changePeriod('1y', this)">Last Year</button>
-</div>
-
-<!-- Charts Grid -->
-<div class="grid-2">
-    <!-- Alert Trends Chart -->
-    <div class="panel">
-        <div class="chart-title">
-            📈 Alert Trends Over Time
-        </div>
-        <div class="chart-placeholder" id="trends-chart">
-            <div style="text-align: center;">
-                <div style="font-size: 48px; opacity: 0.3;">📊</div>
-                <div>Alert trends visualization</div>
-                <div class="text-sm" style="margin-top: 10px;">Shows daily alert counts by risk level</div>
-            </div>
-        </div>
-        <div class="legend">
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--accent-red);"></div>
-                <span>Red Alert</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--accent-yellow);"></div>
-                <span>Warning</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-color" style="background: var(--accent-blue);"></div>
-                <span>Watch</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Threat Distribution -->
-    <div class="panel">
-        <div class="chart-title">
-            🎯 Threat Type Distribution
-        </div>
-        <div class="chart-placeholder" id="distribution-chart">
-            <div style="text-align: center;">
-                <div style="font-size: 48px; opacity: 0.3;">🥧</div>
-                <div>Threat type breakdown</div>
-                <div class="text-sm" style="margin-top: 10px;">Distribution of alert types</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Location Analytics -->
-<div class="grid-2">
-    <div class="panel">
-        <div class="chart-title">
-            🗺️ Geographic Alert Heatmap
-        </div>
-        <div class="chart-placeholder" id="heatmap-chart">
-            <div style="text-align: center;">
-                <div style="font-size: 48px; opacity: 0.3;">🗺️</div>
-                <div>Geographic distribution of alerts</div>
-                <div class="text-sm" style="margin-top: 10px;">Heat map showing alert density by location</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="panel">
-        <div class="chart-title">
-            🏆 Top Alert Locations
-        </div>
-        <ul class="top-locations" id="top-locations">
-            <!-- Will be populated by JavaScript -->
-        </ul>
-    </div>
-</div>
-
-<!-- Performance Metrics -->
-<div class="panel">
-    <div class="chart-title">
-        ⚡ System Performance Metrics
-    </div>
-    <div class="grid-3">
-        <div class="info-card">
-            <div class="info-title">🎯 Prediction Accuracy</div>
-            <div class="metric-row">
-                <span class="metric-label">Overall Accuracy</span>
-                <span class="metric-value" style="color: var(--accent-green);" id="overall-accuracy">94.2%</span>
-            </div>
-            <div class="metric-row">
-                <span class="metric-label">False Positive Rate</span>
-                <span class="metric-value" style="color: var(--accent-yellow);" id="false-positive">3.1%</span>
-            </div>
-            <div class="metric-row">
-                <span class="metric-label">Detection Rate</span>
-                <span class="metric-value" style="color: var(--accent-green);" id="detection-rate">97.8%</span>
-            </div>
-        </div>
-
-        <div class="info-card">
-            <div class="info-title">⏱️ Response Times</div>
-            <div class="metric-row">
-                <span class="metric-label">Average Response</span>
-                <span class="metric-value" style="color: var(--accent-blue);" id="avg-response-time">4.2 min</span>
-            </div>
-            <div class="metric-row">
-                <span class="metric-label">Critical Alerts</span>
-                <span class="metric-value" style="color: var(--accent-red);" id="critical-response">1.8 min</span>
-            </div>
-            <div class="metric-row">
-                <span class="metric-label">Target SLA</span>
-                <span class="metric-value" style="color: var(--accent-green);" id="sla-status">98.5%</span>
-            </div>
-        </div>
-
-        <div class="info-card">
-            <div class="info-title">🔄 System Health</div>
-            <div class="metric-row">
-                <span class="metric-label">Uptime</span>
-                <span class="metric-value" style="color: var(--accent-green);" id="uptime">99.9%</span>
-            </div>
-            <div class="metric-row">
-                <span class="metric-label">Data Quality</span>
-                <span class="metric-value" style="color: var(--accent-green);" id="data-quality">96.7%</span>
-            </div>
-            <div class="metric-row">
-                <span class="metric-label">API Latency</span>
-                <span class="metric-value" style="color: var(--accent-blue);" id="api-latency">145ms</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- AI Insights -->
-<div class="insights-grid">
-    <div class="insight-card">
-        <div class="insight-title">🤖 AI-Generated Insights</div>
-        <div class="insight-content" id="ai-insights">
-            <div class="loading"></div>
-            <span style="margin-left: 10px;">Analyzing patterns...</span>
-        </div>
-    </div>
-
-    <div class="insight-card">
-        <div class="insight-title">📊 Trend Analysis</div>
-        <div class="insight-content" id="trend-analysis">
-            <div class="loading"></div>
-            <span style="margin-left: 10px;">Processing trends...</span>
-        </div>
-    </div>
-
-    <div class="insight-card">
-        <div class="insight-title">⚠️ Risk Assessment</div>
-        <div class="insight-content" id="risk-assessment">
-            <div class="loading"></div>
-            <span style="margin-left: 10px;">Calculating risks...</span>
-        </div>
-    </div>
-
-    <div class="insight-card">
-        <div class="insight-title">🎯 Recommendations</div>
-        <div class="insight-content" id="recommendations">
-            <div class="loading"></div>
-            <span style="margin-left: 10px;">Generating recommendations...</span>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    let analyticsData = [];
-    let currentPeriod = '7d';
-
-    async function loadAnalyticsData() {
-        try {
-            // Load alerts data
-            const alertsResponse = await fetch('/api/alerts?limit=500');
-            analyticsData = await alertsResponse.json();
-            
-            // Load stats
-            const statsResponse = await fetch('/api/stats');
-            const stats = await statsResponse.json();
-            
-            updateOverviewStats(stats);
-            updateTopLocations(stats.location_stats || []);
-            generateInsights();
-            
-        } catch (error) {
-            console.error('Error loading analytics data:', error);
-        }
-    }
-
-    function updateOverviewStats(stats) {
-        document.getElementById('total-alerts').textContent = stats.total_alerts || 0;
-        document.getElementById('critical-alerts').textContent = stats.red_alerts || 0;
-        
-        // Calculate average response time (simulated)
-        const avgResponse = 2 + Math.random() * 4;
-        document.getElementById('avg-response').textContent = avgResponse.toFixed(1) + ' min';
-        
-        // Calculate resolution rate
-        const resolutionRate = 85 + Math.random() * 10;
-        document.getElementById('resolution-rate').textContent = resolutionRate.toFixed(1) + '%';
-    }
-
-    function updateTopLocations(locationStats) {
-        const container = document.getElementById('top-locations');
-        
-        if (!locationStats || locationStats.length === 0) {
-            // Generate demo data
-            const locations = [
-                { location: 'Kandla Port', count: Math.floor(Math.random() * 20) + 10 },
-                { location: 'Mundra Port', count: Math.floor(Math.random() * 20) + 8 },
-                { location: 'Bhavnagar', count: Math.floor(Math.random() * 15) + 5 },
-                { location: 'Hazira', count: Math.floor(Math.random() * 15) + 4 },
-                { location: 'Porbandar', count: Math.floor(Math.random() * 10) + 3 }
-            ];
-            locationStats = locations.sort((a, b) => b.count - a.count);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Gujarat Coastal Alert System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #1a1f2e;
+            --surface: rgba(255, 255, 255, 0.03); /* Added for Navbar */
+            --text: #ffffff;
+            --muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --accent-green: #10b981;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --radius: 16px; /* Added for Navbar */
+            --glow-blue: 0 0 20px rgba(59, 130, 246, 0.5); /* Added for Navbar */
         }
 
-        container.innerHTML = locationStats.slice(0, 8).map(item => `
-            <li>
-                <span class="location-name">${item.location}</span>
-                <span class="location-count">${item.count}</span>
-            </li>
-        `).join('');
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    function generateInsights() {
-        // Simulate AI-generated insights
-        setTimeout(() => {
-            document.getElementById('ai-insights').innerHTML = `
-                <strong>Pattern Detection:</strong><br/>
-                • Alert frequency increases 40% during monsoon season<br/>
-                • Port areas show 60% more critical alerts than coastal towns<br/>
-                • Peak alert times: 14:00-18:00 local time<br/>
-                • Weather correlation: 85% accuracy in storm predictions
-            `;
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
 
-            document.getElementById('trend-analysis').innerHTML = `
-                <strong>Key Trends (${currentPeriod}):</strong><br/>
-                • Critical alerts decreased by 15% compared to previous period<br/>
-                • Kandla Port shows highest alert frequency<br/>
-                • Response times improved by 22%<br/>
-                • Weekend vs weekday alert ratio: 1.3:1
-            `;
-
-            document.getElementById('risk-assessment').innerHTML = `
-                <strong>Current Risk Level:</strong><br/>
-                • Overall: <span style="color: var(--accent-yellow);">Medium</span><br/>
-                • Highest risk locations: Mundra, Bhavnagar<br/>
-                • Weather risk factor: 65%<br/>
-                • Seasonal adjustment: +20% (monsoon approaching)
-            `;
-
-            document.getElementById('recommendations').innerHTML = `
-                <strong>Actionable Recommendations:</strong><br/>
-                • Increase monitoring frequency at Kandla Port<br/>
-                • Deploy additional sensors in Bhavnagar area<br/>
-                • Review emergency protocols for high-traffic ports<br/>
-                • Enhance early warning systems for storm season
-            `;
-        }, 2000);
-    }
-
-    function changePeriod(period, buttonEl) {
-        currentPeriod = period;
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
         
-        // Update button states
-        document.querySelectorAll('.filter-tab').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        buttonEl.classList.add('active');
-        
-        // Reload analytics for new period
-        loadAnalyticsData();
-        
-        // Update trend indicators based on period
-        updateTrendIndicators(period);
-    }
+        /* --- NAVBAR STYLES START --- */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--surface);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 15px 30px;
+            border-radius: var(--radius);
+            margin-bottom: 40px;
+        }
 
-    function updateTrendIndicators(period) {
-        const trends = {
-            '7d': { total: '+12%', critical: '-5%', response: 'Stable', resolution: '+8%' },
-            '30d': { total: '+25%', critical: '+2%', response: '-12%', resolution: '+15%' },
-            '90d': { total: '+18%', critical: '-8%', response: '-25%', resolution: '+22%' },
-            '1y': { total: '+35%', critical: '-15%', response: '-40%', resolution: '+45%' }
+        .nav-brand {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .logo-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+        }
+
+        .brand-text {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 24px;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 10px;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover {
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+        }
+        
+        .nav-link.active {
+            color: var(--accent-blue);
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-name {
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            color: var(--muted);
+        }
+        /* --- NAVBAR STYLES END --- */
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .text-muted {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: var(--glow-blue);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 16px;
+            padding: 25px;
+            text-align: center;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.6s;
+        }
+
+        .stat-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .stat-box:hover::before {
+            left: 100%;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .trend-indicator {
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 5px;
+        }
+
+        .trend-up { color: var(--accent-red); }
+        .trend-down { color: var(--accent-green); }
+        .trend-stable { color: var(--accent-blue); }
+
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            padding: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            padding: 10px 20px;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            color: var(--muted);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .filter-tab.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .filter-tab:hover:not(.active) {
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(255,255,255,0.02);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: var(--transition);
+        }
+
+        .panel:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+        }
+
+        .chart-title {
+            font-weight: 800;
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-container {
+            height: 300px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-content {
+            text-align: center;
+            z-index: 2;
+        }
+
+        .chart-placeholder {
+            font-size: 48px;
+            opacity: 0.3;
+            margin-bottom: 10px;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+        }
+
+        .top-locations {
+            list-style: none;
+            padding: 0;
+        }
+
+        .top-locations li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            transition: var(--transition);
+        }
+
+        .top-locations li:hover {
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            margin: 0 -10px;
+            padding: 10px;
+        }
+
+        .top-locations li:last-child {
+            border-bottom: none;
+        }
+
+        .location-name {
+            font-weight: 600;
+        }
+
+        .location-count {
+            background: var(--accent-blue);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .info-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 25px;
+            transition: var(--transition);
+        }
+
+        .info-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+        }
+
+        .info-title {
+            font-weight: 800;
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: var(--accent-blue);
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .metric-value {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .insight-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 25px;
+            transition: var(--transition);
+        }
+
+        .insight-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+        }
+
+        .insight-title {
+            font-weight: 800;
+            font-size: 16px;
+            margin-bottom: 15px;
+            color: var(--accent-blue);
+        }
+
+        .insight-content {
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .loading {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-top: 2px solid var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .text-sm {
+            font-size: 14px;
+        }
+
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 50% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.6; }
+        }
+
+        @media (max-width: 880px) {
+            .navbar {
+                flex-direction: column;
+                gap: 20px;
+                padding: 20px;
+            }
+            .nav-links {
+                gap: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .filter-tabs {
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-overview {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            .nav-user {
+                flex-direction: column;
+                gap: 10px;
+            }
+        }
+
+        .chart-container {
+            animation: slideInUp 0.6s ease-out;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stat-box {
+            animation: fadeInScale 0.6s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Chart.js canvas styling */
+        .chart-container canvas {
+            position: relative;
+            z-index: 3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <div class="logo-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 21l6-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <path d="M7 17l4-4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                        <circle cx="17" cy="7" r="4" stroke="#fff" stroke-width="2" fill="rgba(59,130,246,0.3)"></circle>
+                    </svg>
+                </div>
+                <div class="brand-text">Gujarat Coastal Alert</div>
+            </div>
+
+            <div class="nav-links">
+                <a href="dashboard.html" class="nav-link">Dashboard</a>
+                <a href="monitoring.html" class="nav-link">Live Monitoring</a>
+                <a href="analysis.html" class="nav-link active">Analytics</a>
+            </div>
+
+            <div class="nav-user">
+                <div class="user-info">
+                    <div class="user-name">System Operator</div>
+                    <div class="user-role">Administrator</div>
+                </div>
+                <a href="Settings.html" class="btn btn-secondary">Settings</a>
+                <a href="#" class="btn btn-primary">Emergency</a>
+            </div>
+        </nav>
+        
+        <div class="header">
+            <div>
+                <h1>Analytics Dashboard</h1>
+                <p class="text-muted">Comprehensive analysis of coastal alert patterns and trends</p>
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <button class="btn btn-secondary" onclick="exportAnalytics()">
+                    📊 Export Report
+                </button>
+                <button class="btn btn-primary" onclick="refreshAnalytics()">
+                    🔄 Refresh Data
+                </button>
+            </div>
+        </div>
+
+        <div class="stats-overview" id="stats-overview">
+            <div class="stat-box">
+                <div class="stat-number" style="color: var(--accent-blue);" id="total-alerts">847</div>
+                <div class="stat-label">Total Alerts</div>
+                <div class="trend-indicator trend-up" id="total-trend">+12% this week</div>
+            </div>
+            
+            <div class="stat-box">
+                <div class="stat-number" style="color: var(--accent-red);" id="critical-alerts">23</div>
+                <div class="stat-label">Critical Alerts</div>
+                <div class="trend-indicator trend-down" id="critical-trend">-5% this week</div>
+            </div>
+            
+            <div class="stat-box">
+                <div class="stat-number" style="color: var(--accent-yellow);" id="avg-response">4.2 min</div>
+                <div class="stat-label">Avg Response Time</div>
+                <div class="trend-indicator trend-stable" id="response-trend">Stable</div>
+            </div>
+            
+            <div class="stat-box">
+                <div class="stat-number" style="color: var(--accent-green);" id="resolution-rate">94.2%</div>
+                <div class="stat-label">Resolution Rate</div>
+                <div class="trend-indicator trend-up" id="resolution-trend">+8% this week</div>
+            </div>
+        </div>
+
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="changePeriod('7d', this)">Last 7 Days</button>
+            <button class="filter-tab" onclick="changePeriod('30d', this)">Last 30 Days</button>
+            <button class="filter-tab" onclick="changePeriod('90d', this)">Last 3 Months</button>
+            <button class="filter-tab" onclick="changePeriod('1y', this)">Last Year</button>
+        </div>
+
+        <div class="grid-2">
+            <div class="panel">
+                <div class="chart-title">
+                    📈 Alert Trends Over Time
+                </div>
+                <div class="chart-container" id="trends-chart">
+                    <canvas id="trendsCanvas"></canvas>
+                </div>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--accent-red);"></div>
+                        <span>Red Alert</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--accent-yellow);"></div>
+                        <span>Warning</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: var(--accent-blue);"></div>
+                        <span>Watch</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="chart-title">
+                    🎯 Threat Type Distribution
+                </div>
+                <div class="chart-container" id="distribution-chart">
+                    <canvas id="distributionCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="panel">
+                <div class="chart-title">
+                    🗺️ Geographic Alert Heatmap
+                </div>
+                <div class="chart-container" id="heatmap-chart">
+                    <svg id="gujaratMap" width="100%" height="280" viewBox="0 0 400 280" style="background: transparent;">
+                        <!-- Gujarat coastline outline -->
+                        <path d="M50 80 Q80 60 120 70 Q160 75 200 85 Q240 90 280 100 Q320 110 350 130 L360 150 Q350 170 330 190 Q300 210 270 220 Q240 225 210 230 Q180 235 150 240 Q120 245 90 250 Q70 240 55 220 Q45 200 50 180 Z" 
+                              fill="rgba(59, 130, 246, 0.1)" 
+                              stroke="rgba(59, 130, 246, 0.3)" 
+                              stroke-width="2"/>
+                        
+                        <!-- Alert location markers -->
+                        <g id="alertMarkers">
+                            <!-- Kandla Port -->
+                            <circle cx="120" cy="100" r="12" fill="#ef4444" opacity="0.8" class="alert-marker" data-location="Kandla Port" data-count="156">
+                                <animate attributeName="r" values="12;15;12" dur="2s" repeatCount="indefinite"/>
+                            </circle>
+                            
+                            <!-- Mundra Port -->
+                            <circle cx="140" cy="110" r="11" fill="#f59e0b" opacity="0.8" class="alert-marker" data-location="Mundra Port" data-count="134">
+                                <animate attributeName="r" values="11;14;11" dur="2.5s" repeatCount="indefinite"/>
+                            </circle>
+                            
+                            <!-- Bhavnagar -->
+                            <circle cx="200" cy="160" r="10" fill="#f59e0b" opacity="0.8" class="alert-marker" data-location="Bhavnagar" data-count="98">
+                                <animate attributeName="r" values="10;13;10" dur="3s" repeatCount="indefinite"/>
+                            </circle>
+                            
+                            <!-- Hazira -->
+                            <circle cx="240" cy="180" r="9" fill="#3b82f6" opacity="0.8" class="alert-marker" data-location="Hazira" data-count="87">
+                                <animate attributeName="r" values="9;12;9" dur="2.8s" repeatCount="indefinite"/>
+                            </circle>
+                            
+                            <!-- Porbandar -->
+                            <circle cx="160" cy="200" r="8" fill="#3b82f6" opacity="0.8" class="alert-marker" data-location="Porbandar" data-count="73">
+                                <animate attributeName="r" values="8;11;8" dur="3.2s" repeatCount="indefinite"/>
+                            </circle>
+                            
+                            <!-- Veraval -->
+                            <circle cx="140" cy="220" r="7" fill="#10b981" opacity="0.8" class="alert-marker" data-location="Veraval" data-count="65">
+                                <animate attributeName="r" values="7;10;7" dur="2.7s" repeatCount="indefinite"/>
+                            </circle>
+                            
+                            <!-- Okha -->
+                            <circle cx="100" cy="180" r="6" fill="#10b981" opacity="0.8" class="alert-marker" data-location="Okha" data-count="45">
+                                <animate attributeName="r" values="6;9;6" dur="3.5s" repeatCount="indefinite"/>
+                            </circle>
+                            
+                            <!-- Dwarka -->
+                            <circle cx="80" cy="160" r="5" fill="#10b981" opacity="0.8" class="alert-marker" data-location="Dwarka" data-count="38">
+                                <animate attributeName="r" values="5;8;5" dur="4s" repeatCount="indefinite"/>
+                            </circle>
+                        </g>
+                        
+                        <!-- Location labels -->
+                        <g id="locationLabels" style="font-family: Inter; font-size: 11px; fill: #94a3b8; font-weight: 600;">
+                            <text x="125" y="95" text-anchor="middle">Kandla</text>
+                            <text x="145" y="105" text-anchor="middle">Mundra</text>
+                            <text x="205" y="155" text-anchor="middle">Bhavnagar</text>
+                            <text x="245" y="175" text-anchor="middle">Hazira</text>
+                            <text x="165" y="195" text-anchor="middle">Porbandar</text>
+                            <text x="145" y="215" text-anchor="middle">Veraval</text>
+                            <text x="105" y="175" text-anchor="middle">Okha</text>
+                            <text x="85" y="155" text-anchor="middle">Dwarka</text>
+                        </g>
+                        
+                        <!-- Legend -->
+                        <g id="mapLegend" style="font-family: Inter; font-size: 10px; fill: #94a3b8;">
+                            <text x="20" y="40" style="font-weight: 700; fill: #ffffff;">Alert Density</text>
+                            <circle cx="30" cy="55" r="6" fill="#ef4444" opacity="0.8"/>
+                            <text x="45" y="60">High (100+ alerts)</text>
+                            <circle cx="30" cy="70" r="6" fill="#f59e0b" opacity="0.8"/>
+                            <text x="45" y="75">Medium (50-100 alerts)</text>
+                            <circle cx="160" cy="55" r="6" fill="#3b82f6" opacity="0.8"/>
+                            <text x="175" y="60">Low (25-50 alerts)</text>
+                            <circle cx="160" cy="70" r="6" fill="#10b981" opacity="0.8"/>
+                            <text x="175" y="75">Very Low (&lt;25 alerts)</text>
+                        </g>
+                        
+                        <!-- Tooltip -->
+                        <g id="mapTooltip" style="display: none; pointer-events: none;">
+                            <rect x="0" y="0" width="100" height="40" rx="8" fill="rgba(26, 31, 46, 0.95)" stroke="rgba(255, 255, 255, 0.2)"/>
+                            <text x="50" y="18" text-anchor="middle" style="font-family: Inter; font-size: 12px; fill: #ffffff; font-weight: 600;" id="tooltipLocation"></text>
+                            <text x="50" y="32" text-anchor="middle" style="font-family: Inter; font-size: 10px; fill: #94a3b8;" id="tooltipCount"></text>
+                        </g>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="chart-title">
+                    🏆 Top Alert Locations
+                </div>
+                <ul class="top-locations" id="top-locations">
+                    </ul>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="chart-title">
+                ⚡ System Performance Metrics
+            </div>
+            <div class="grid-3">
+                <div class="info-card">
+                    <div class="info-title">🎯 Prediction Accuracy</div>
+                    <div class="metric-row">
+                        <span class="metric-label">Overall Accuracy</span>
+                        <span class="metric-value" style="color: var(--accent-green);" id="overall-accuracy">94.2%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">False Positive Rate</span>
+                        <span class="metric-value" style="color: var(--accent-yellow);" id="false-positive">3.1%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Detection Rate</span>
+                        <span class="metric-value" style="color: var(--accent-green);" id="detection-rate">97.8%</span>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-title">⏱️ Response Times</div>
+                    <div class="metric-row">
+                        <span class="metric-label">Average Response</span>
+                        <span class="metric-value" style="color: var(--accent-blue);" id="avg-response-time">4.2 min</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Critical Alerts</span>
+                        <span class="metric-value" style="color: var(--accent-red);" id="critical-response">1.8 min</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Target SLA</span>
+                        <span class="metric-value" style="color: var(--accent-green);" id="sla-status">98.5%</span>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-title">🔄 System Health</div>
+                    <div class="metric-row">
+                        <span class="metric-label">Uptime</span>
+                        <span class="metric-value" style="color: var(--accent-green);" id="uptime">99.9%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Data Quality</span>
+                        <span class="metric-value" style="color: var(--accent-green);" id="data-quality">96.7%</span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">API Latency</span>
+                        <span class="metric-value" style="color: var(--accent-blue);" id="api-latency">145ms</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="insights-grid">
+            <div class="insight-card">
+                <div class="insight-title">🤖 AI-Generated Insights</div>
+                <div class="insight-content" id="ai-insights">
+                    <div class="loading"></div>
+                    <span style="margin-left: 10px;">Analyzing patterns...</span>
+                </div>
+            </div>
+
+            <div class="insight-card">
+                <div class="insight-title">📊 Trend Analysis</div>
+                <div class="insight-content" id="trend-analysis">
+                    <div class="loading"></div>
+                    <span style="margin-left: 10px;">Processing trends...</span>
+                </div>
+            </div>
+
+            <div class="insight-card">
+                <div class="insight-title">⚠️ Risk Assessment</div>
+                <div class="insight-content" id="risk-assessment">
+                    <div class="loading"></div>
+                    <span style="margin-left: 10px;">Calculating risks...</span>
+                </div>
+            </div>
+
+            <div class="insight-card">
+                <div class="insight-title">🎯 Recommendations</div>
+                <div class="insight-content" id="recommendations">
+                    <div class="loading"></div>
+                    <span style="margin-left: 10px;">Generating recommendations...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let analyticsData = [];
+        let currentPeriod = '7d';
+        let trendsChart = null;
+        let distributionChart = null;
+
+        // Mock data for demonstration
+        const mockStats = {
+            total_alerts: 847,
+            red_alerts: 23,
+            location_stats: [
+                { location: 'Kandla Port', count: 156 },
+                { location: 'Mundra Port', count: 134 },
+                { location: 'Bhavnagar', count: 98 },
+                { location: 'Hazira', count: 87 },
+                { location: 'Porbandar', count: 73 },
+                { location: 'Veraval', count: 65 },
+                { location: 'Okha', count: 45 },
+                { location: 'Dwarka', count: 38 }
+            ]
         };
 
-        const periodTrends = trends[period];
-        document.getElementById('total-trend').textContent = `${periodTrends.total} this period`;
-        document.getElementById('critical-trend').textContent = `${periodTrends.critical} this period`;
-        document.getElementById('response-trend').textContent = periodTrends.response;
-        document.getElementById('resolution-trend').textContent = `${periodTrends.resolution} this period`;
-    }
+        // Generate realistic trend data based on period
+        function generateTrendData(period) {
+            const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
+            const labels = [];
+            const redData = [];
+            const yellowData = [];
+            const blueData = [];
 
-    function exportAnalytics() {
-        // Create comprehensive analytics report
-        const reportData = {
-            period: currentPeriod,
-            generated: new Date().toISOString(),
-            statistics: {
-                total_alerts: document.getElementById('total-alerts').textContent,
-                critical_alerts: document.getElementById('critical-alerts').textContent,
-                avg_response: document.getElementById('avg-response').textContent,
-                resolution_rate: document.getElementById('resolution-rate').textContent
-            },
-            performance: {
-                accuracy: document.getElementById('overall-accuracy').textContent,
-                false_positive_rate: document.getElementById('false-positive').textContent,
-                detection_rate: document.getElementById('detection-rate').textContent,
-                uptime: document.getElementById('uptime').textContent
-            },
-            alerts: analyticsData.slice(0, 100) // Include recent alerts
-        };
+            for (let i = days - 1; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                labels.push(period === '1y' ? date.toLocaleDateString('en-IN', { month: 'short' }) : 
+                           period === '90d' ? date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) :
+                           date.toLocaleDateString('en-IN', { weekday: 'short' }));
 
-        const jsonContent = JSON.stringify(reportData, null, 2);
-        const blob = new Blob([jsonContent], { type: 'application/json' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `gujarat_coastal_analytics_${currentPeriod}_${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-    }
+                // Generate realistic data with some patterns
+                const baseRed = 2 + Math.sin((i / days) * Math.PI * 4) * 1.5;
+                const baseYellow = 8 + Math.sin((i / days) * Math.PI * 3) * 3;
+                const baseBlue = 15 + Math.sin((i / days) * Math.PI * 2) * 5;
 
-    function refreshAnalytics() {
-        // Show loading states
-        document.querySelectorAll('.insight-content').forEach(el => {
-            el.innerHTML = '<div class="loading"></div><span style="margin-left: 10px;">Refreshing...</span>';
-        });
-        
-        loadAnalyticsData();
-    }
+                redData.push(Math.max(0, Math.round(baseRed + Math.random() * 2)));
+                yellowData.push(Math.max(0, Math.round(baseYellow + Math.random() * 4)));
+                blueData.push(Math.max(0, Math.round(baseBlue + Math.random() * 6)));
+            }
 
-    // Socket.IO event handlers
-    socket.on('new_alert', (alert) => {
-        analyticsData.unshift(alert);
-        analyticsData = analyticsData.slice(0, 500); // Keep recent 500
-        
-        // Update real-time stats
-        setTimeout(() => {
+            return { labels, redData, yellowData, blueData };
+        }
+
+        // Generate threat type distribution data
+        function generateThreatData() {
+            return {
+                labels: ['Storm Warning', 'High Tide', 'Coastal Erosion', 'Oil Spill', 'Equipment Failure', 'Seismic Activity'],
+                data: [28, 22, 18, 15, 12, 5],
+                colors: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#f97316']
+            };
+        }
+
+        // Initialize trend chart
+        function initTrendsChart() {
+            const ctx = document.getElementById('trendsCanvas').getContext('2d');
+            const trendData = generateTrendData(currentPeriod);
+
+            if (trendsChart) {
+                trendsChart.destroy();
+            }
+
+            trendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendData.labels,
+                    datasets: [
+                        {
+                            label: 'Red Alert',
+                            data: trendData.redData,
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#ef4444',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 8
+                        },
+                        {
+                            label: 'Warning',
+                            data: trendData.yellowData,
+                            borderColor: '#f59e0b',
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#f59e0b',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 8
+                        },
+                        {
+                            label: 'Watch',
+                            data: trendData.blueData,
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4,
+                            pointBackgroundColor: '#3b82f6',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5,
+                            pointHoverRadius: 8
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(26, 31, 46, 0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)',
+                                borderColor: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Inter',
+                                    size: 12
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                borderColor: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: {
+                                    family: 'Inter',
+                                    size: 12
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutCubic'
+                    }
+                }
+            });
+        }
+
+        // Initialize distribution chart
+        function initDistributionChart() {
+            const ctx = document.getElementById('distributionCanvas').getContext('2d');
+            const threatData = generateThreatData();
+
+            if (distributionChart) {
+                distributionChart.destroy();
+            }
+
+            distributionChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: threatData.labels,
+                    datasets: [{
+                        data: threatData.data,
+                        backgroundColor: threatData.colors,
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 2,
+                        hoverBorderWidth: 3,
+                        hoverBorderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(26, 31, 46, 0.9)',
+                            titleColor: '#ffffff',
+                            bodyColor: '#ffffff',
+                            borderColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed}% (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        animateRotate: true,
+                        duration: 1000,
+                        easing: 'easeOutCubic'
+                    },
+                    onHover: (event, elements) => {
+                        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    }
+                }
+            });
+
+            // Add center text showing total
+            const centerText = {
+                id: 'centerText',
+                beforeDatasetsDraw(chart) {
+                    const { ctx, data } = chart;
+                    ctx.save();
+                    const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                    
+                    ctx.font = 'bold 24px Inter';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    const centerX = chart.getDatasetMeta(0).data[0].x;
+                    const centerY = chart.getDatasetMeta(0).data[0].y;
+                    
+                    ctx.fillText(total + '%', centerX, centerY - 5);
+                    
+                    ctx.font = '12px Inter';
+                    ctx.fillStyle = '#94a3b8';
+                    ctx.fillText('Total Coverage', centerX, centerY + 15);
+                    ctx.restore();
+                }
+            };
+
+            Chart.register(centerText);
+        }
+
+        function loadAnalyticsData() {
+            // Simulate API call with mock data
+            setTimeout(() => {
+                updateOverviewStats(mockStats);
+                updateTopLocations(mockStats.location_stats);
+                initTrendsChart();
+                initDistributionChart();
+                generateInsights();
+            }, 500);
+        }
+
+        function updateOverviewStats(stats) {
+            // Update stats with animations
+            animateNumber('total-alerts', 0, stats.total_alerts, 1000);
+            animateNumber('critical-alerts', 0, stats.red_alerts, 1000);
+            
+            // Calculate and animate other metrics
+            const avgResponse = 2 + Math.random() * 4;
+            const resolutionRate = 85 + Math.random() * 10;
+            
+            setTimeout(() => {
+                document.getElementById('avg-response').textContent = avgResponse.toFixed(1) + ' min';
+                document.getElementById('resolution-rate').textContent = resolutionRate.toFixed(1) + '%';
+            }, 500);
+        }
+
+        function animateNumber(elementId, start, end, duration) {
+            const element = document.getElementById(elementId);
+            const startTime = performance.now();
+            
+            function updateNumber(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const current = Math.floor(start + (end - start) * progress);
+                
+                element.textContent = current;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(updateNumber);
+                }
+            }
+            
+            requestAnimationFrame(updateNumber);
+        }
+
+        function updateTopLocations(locationStats) {
+            const container = document.getElementById('top-locations');
+            
+            if (!locationStats || locationStats.length === 0) {
+                locationStats = mockStats.location_stats;
+            }
+
+            container.innerHTML = locationStats.slice(0, 8).map((item, index) => `
+                <li style="animation-delay: ${index * 100}ms; animation: slideInLeft 0.6s ease-out both;">
+                    <span class="location-name">${item.location}</span>
+                    <span class="location-count">${item.count}</span>
+                </li>
+            `).join('');
+        }
+
+        function generateInsights() {
+            // Simulate AI-generated insights with realistic loading time
+            setTimeout(() => {
+                document.getElementById('ai-insights').innerHTML = `
+                    <strong>Pattern Detection:</strong><br/>
+                    • Alert frequency increases 40% during monsoon season<br/>
+                    • Port areas show 60% more critical alerts than coastal towns<br/>
+                    • Peak alert times: 14:00-18:00 local time<br/>
+                    • Weather correlation: 85% accuracy in storm predictions
+                `;
+
+                document.getElementById('trend-analysis').innerHTML = `
+                    <strong>Key Trends (${currentPeriod}):</strong><br/>
+                    • Critical alerts decreased by 15% compared to previous period<br/>
+                    • Kandla Port shows highest alert frequency<br/>
+                    • Response times improved by 22%<br/>
+                    • Weekend vs weekday alert ratio: 1.3:1
+                `;
+
+                document.getElementById('risk-assessment').innerHTML = `
+                    <strong>Current Risk Level:</strong><br/>
+                    • Overall: <span style="color: var(--accent-yellow);">Medium</span><br/>
+                    • Highest risk locations: Mundra, Bhavnagar<br/>
+                    • Weather risk factor: 65%<br/>
+                    • Seasonal adjustment: +20% (monsoon approaching)
+                `;
+
+                document.getElementById('recommendations').innerHTML = `
+                    <strong>Actionable Recommendations:</strong><br/>
+                    • Increase monitoring frequency at Kandla Port<br/>
+                    • Deploy additional sensors in Bhavnagar area<br/>
+                    • Review emergency protocols for high-traffic ports<br/>
+                    • Enhance early warning systems for storm season
+                `;
+            }, 2000);
+        }
+
+        function changePeriod(period, buttonEl) {
+            currentPeriod = period;
+            
+            // Update button states
+            document.querySelectorAll('.filter-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            buttonEl.classList.add('active');
+            
+            // Reload analytics for new period
             loadAnalyticsData();
-        }, 1000);
-    });
-
-    socket.on('alerts_update', (alerts) => {
-        analyticsData = alerts;
-        updateTopLocations();
-    });
-
-    // Initialize analytics
-    document.addEventListener('DOMContentLoaded', () => {
-        loadAnalyticsData();
-        
-        // Update performance metrics every 30 seconds
-        setInterval(() => {
-            // Simulate real-time performance updates
-            const accuracy = 93 + Math.random() * 4;
-            const falsePositive = 2 + Math.random() * 3;
-            const detectionRate = 96 + Math.random() * 3;
-            const uptime = 99.8 + Math.random() * 0.2;
-            const dataQuality = 95 + Math.random() * 4;
-            const latency = 120 + Math.random() * 50;
             
-            document.getElementById('overall-accuracy').textContent = accuracy.toFixed(1) + '%';
-            document.getElementById('false-positive').textContent = falsePositive.toFixed(1) + '%';
-            document.getElementById('detection-rate').textContent = detectionRate.toFixed(1) + '%';
-            document.getElementById('uptime').textContent = uptime.toFixed(1) + '%';
-            document.getElementById('data-quality').textContent = dataQuality.toFixed(1) + '%';
-            document.getElementById('api-latency').textContent = Math.round(latency) + 'ms';
-        }, 30000);
-    });
+            // Update trend indicators based on period
+            updateTrendIndicators(period);
+        }
+
+        function updateTrendIndicators(period) {
+            const trends = {
+                '7d': { total: '+12%', critical: '-5%', response: 'Stable', resolution: '+8%' },
+                '30d': { total: '+25%', critical: '+2%', response: '-12%', resolution: '+15%' },
+                '90d': { total: '+18%', critical: '-8%', response: '-25%', resolution: '+22%' },
+                '1y': { total: '+35%', critical: '-15%', response: '-40%', resolution: '+45%' }
+            };
+
+            const periodTrends = trends[period];
+            document.getElementById('total-trend').textContent = `${periodTrends.total} this period`;
+            document.getElementById('critical-trend').textContent = `${periodTrends.critical} this period`;
+            document.getElementById('response-trend').textContent = periodTrends.response;
+            document.getElementById('resolution-trend').textContent = `${periodTrends.resolution} this period`;
+        }
+
+        function exportAnalytics() {
+            // Create comprehensive analytics report
+            const reportData = {
+                period: currentPeriod,
+                generated: new Date().toISOString(),
+                statistics: {
+                    total_alerts: document.getElementById('total-alerts').textContent,
+                    critical_alerts: document.getElementById('critical-alerts').textContent,
+                    avg_response: document.getElementById('avg-response').textContent,
+                    resolution_rate: document.getElementById('resolution-rate').textContent
+                },
+                performance: {
+                    accuracy: document.getElementById('overall-accuracy').textContent,
+                    false_positive_rate: document.getElementById('false-positive').textContent,
+                    detection_rate: document.getElementById('detection-rate').textContent,
+                    uptime: document.getElementById('uptime').textContent
+                },
+                locations: mockStats.location_stats
+            };
+
+            const jsonContent = JSON.stringify(reportData, null, 2);
+            const blob = new Blob([jsonContent], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gujarat_coastal_analytics_${currentPeriod}_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            window.URL.revokeObjectURL(url);
+            
+            // Show success message
+            showNotification('Analytics report exported successfully!', 'success');
+        }
+
+        function refreshAnalytics() {
+            // Show loading states
+            document.querySelectorAll('.insight-content').forEach(el => {
+                el.innerHTML = '<div class="loading"></div><span style="margin-left: 10px;">Refreshing...</span>';
+            });
+            
+            // Add refresh animation to stats
+            document.querySelectorAll('.stat-box').forEach(box => {
+                box.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    box.style.transform = 'scale(1)';
+                }, 200);
+            });
+            
+            loadAnalyticsData();
+            showNotification('Analytics data refreshed!', 'info');
+        }
+
+        function showNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? 'var(--accent-green)' : 'var(--accent-blue)'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 12px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                z-index: 1000;
+                font-weight: 600;
+                animation: slideInRight 0.3s ease-out;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOutRight 0.3s ease-out';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Add CSS animations for notifications
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideInRight {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOutRight {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+            @keyframes slideInLeft {
+                from { transform: translateX(-20px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Simulate real-time updates
+        function simulateRealTimeUpdates() {
+            setInterval(() => {
+                // Update performance metrics with slight variations
+                const accuracy = 93 + Math.random() * 4;
+                const falsePositive = 2 + Math.random() * 3;
+                const detectionRate = 96 + Math.random() * 3;
+                const uptime = 99.8 + Math.random() * 0.2;
+                const dataQuality = 95 + Math.random() * 4;
+                const latency = 120 + Math.random() * 50;
+                
+                document.getElementById('overall-accuracy').textContent = accuracy.toFixed(1) + '%';
+                document.getElementById('false-positive').textContent = falsePositive.toFixed(1) + '%';
+                document.getElementById('detection-rate').textContent = detectionRate.toFixed(1) + '%';
+                document.getElementById('uptime').textContent = uptime.toFixed(1) + '%';
+                document.getElementById('data-quality').textContent = dataQuality.toFixed(1) + '%';
+                document.getElementById('api-latency').textContent = Math.round(latency) + 'ms';
+                
+                // Add subtle glow effect to updated metrics
+                [document.getElementById('overall-accuracy'), 
+                 document.getElementById('false-positive'),
+                 document.getElementById('detection-rate'),
+                 document.getElementById('uptime'),
+                 document.getElementById('data-quality'),
+                 document.getElementById('api-latency')].forEach(el => {
+                    el.style.textShadow = '0 0 10px currentColor';
+                    setTimeout(() => {
+                        el.style.textShadow = 'none';
+                    }, 1000);
+                });
+            }, 30000);
+        }
+
+        // Simulate new alert notifications
+        function simulateNewAlerts() {
+            const locations = ['Kandla Port', 'Mundra Port', 'Bhavnagar', 'Hazira', 'Porbandar'];
+            const threatTypes = ['Storm Warning', 'High Tide', 'Coastal Erosion', 'Oil Spill', 'Equipment Failure'];
+            
+            setInterval(() => {
+                if (Math.random() < 0.3) { // 30% chance every 10 seconds
+                    const newAlert = {
+                        location: locations[Math.floor(Math.random() * locations.length)],
+                        threat: threatTypes[Math.floor(Math.random() * threatTypes.length)],
+                        severity: Math.random() > 0.8 ? 'red' : Math.random() > 0.5 ? 'yellow' : 'blue'
+                    };
+                    
+                    // Update total alerts counter
+                    const currentTotal = parseInt(document.getElementById('total-alerts').textContent);
+                    animateNumber('total-alerts', currentTotal, currentTotal + 1, 500);
+                    
+                    // Update critical alerts if it's a red alert
+                    if (newAlert.severity === 'red') {
+                        const currentCritical = parseInt(document.getElementById('critical-alerts').textContent);
+                        animateNumber('critical-alerts', currentCritical, currentCritical + 1, 500);
+                    }
+                    
+                    showNotification(`New ${newAlert.severity.toUpperCase()} alert: ${newAlert.threat} at ${newAlert.location}`, 'info');
+                }
+            }, 10000);
+        }
+
+        // Add interactive hover effects to charts
+        function addChartInteractivity() {
+            document.querySelectorAll('.chart-container').forEach(chart => {
+                chart.addEventListener('mouseenter', () => {
+                    chart.style.transform = 'scale(1.02)';
+                    chart.style.boxShadow = '0 20px 60px rgba(59, 130, 246, 0.2)';
+                });
+                
+                chart.addEventListener('mouseleave', () => {
+                    chart.style.transform = 'scale(1)';
+                    chart.style.boxShadow = 'none';
+                });
+            });
+
+            // Add heatmap interactivity
+            initHeatmapInteractivity();
+        }
+
+        // Initialize heatmap interactivity
+        function initHeatmapInteractivity() {
+            const markers = document.querySelectorAll('.alert-marker');
+            const tooltip = document.getElementById('mapTooltip');
+            const tooltipLocation = document.getElementById('tooltipLocation');
+            const tooltipCount = document.getElementById('tooltipCount');
+
+            markers.forEach(marker => {
+                marker.addEventListener('mouseenter', (e) => {
+                    const location = e.target.getAttribute('data-location');
+                    const count = e.target.getAttribute('data-count');
+                    
+                    tooltipLocation.textContent = location;
+                    tooltipCount.textContent = `${count} alerts`;
+                    
+                    tooltip.style.display = 'block';
+                    
+                    // Add glow effect
+                    e.target.style.filter = 'drop-shadow(0 0 8px currentColor)';
+                });
+
+                marker.addEventListener('mousemove', (e) => {
+                    const rect = document.getElementById('gujaratMap').getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    tooltip.setAttribute('transform', `translate(${x + 10}, ${y - 45})`);
+                });
+
+                marker.addEventListener('mouseleave', (e) => {
+                    tooltip.style.display = 'none';
+                    e.target.style.filter = 'none';
+                });
+
+                marker.addEventListener('click', (e) => {
+                    const location = e.target.getAttribute('data-location');
+                    const count = e.target.getAttribute('data-count');
+                    showNotification(`${location}: ${count} alerts - View detailed report`, 'info');
+                });
+            });
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAnalyticsData();
+            simulateRealTimeUpdates();
+            simulateNewAlerts();
+            addChartInteractivity();
+            
+            // Add staggered animation to stat boxes
+            document.querySelectorAll('.stat-box').forEach((box, index) => {
+                box.style.animationDelay = `${index * 150}ms`;
+            });
+            
+            // Add loading completion effect
+            setTimeout(() => {
+                document.body.style.opacity = '1';
+            }, 100);
+        });
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'r':
+                        e.preventDefault();
+                        refreshAnalytics();
+                        break;
+                    case 'e':
+                        e.preventDefault();
+                        exportAnalytics();
+                        break;
+                }
+            }
+        });
+
+        // Add window resize handler
+        window.addEventListener('resize', () => {
+            // Adjust layouts for responsive design
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) {
+                document.querySelectorAll('.grid-2').forEach(grid => {
+                    grid.style.gridTemplateColumns = '1fr';
+                });
+            } else {
+                document.querySelectorAll('.grid-2').forEach(grid => {
+                    grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(400px, 1fr))';
+                });
+            }
+            
+            // Resize charts on window resize
+            if (trendsChart) trendsChart.resize();
+            if (distributionChart) distributionChart.resize();
+        });
+    </script>
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
 </script>
-{% endblock %}
+</body>
+</html>

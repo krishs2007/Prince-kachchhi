@@ -1,0 +1,601 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts Management - Gujarat Coastal Alert System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filters-panel {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 20px;
+        display: flex;
+        gap: 20px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .filter-label {
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--text);
+    }
+
+    .filter-select {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 10px 15px;
+        color: var(--text);
+        font-weight: 500;
+        min-width: 150px;
+    }
+
+    .filter-select:focus {
+        outline: none;
+        border-color: var(--accent-blue);
+        box-shadow: 0 0 0 2px rgba(59,130,246,0.2);
+    }
+
+    .alerts-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .alert-item {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 16px;
+        padding: 25px;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .alert-item:hover {
+        background: rgba(255,255,255,0.05);
+        transform: translateY(-2px);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+
+    .alert-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+
+    .alert-title {
+        font-weight: 800;
+        font-size: 18px;
+        margin-bottom: 5px;
+    }
+
+    .alert-meta {
+        display: flex;
+        gap: 20px;
+        color: var(--muted);
+        font-size: 14px;
+        flex-wrap: wrap;
+    }
+
+    .alert-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .risk-badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .risk-watch {
+        background: rgba(59,130,246,0.2);
+        color: var(--accent-blue);
+        border: 1px solid rgba(59,130,246,0.3);
+    }
+
+    .risk-warning {
+        background: rgba(245,158,11,0.2);
+        color: var(--accent-yellow);
+        border: 1px solid rgba(245,158,11,0.3);
+    }
+
+    .risk-red-alert {
+        background: rgba(239,68,68,0.2);
+        color: var(--accent-red);
+        border: 1px solid rgba(239,68,68,0.3);
+        animation: pulse-red 2s infinite;
+    }
+
+    @keyframes pulse-red {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+        50% { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+    }
+
+    .alert-details {
+        background: rgba(255,255,255,0.02);
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 13px;
+        color: var(--muted);
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 30px;
+    }
+
+    .page-btn {
+        padding: 10px 15px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        color: var(--text);
+        text-decoration: none;
+        transition: var(--transition);
+    }
+
+    .page-btn:hover {
+        background: rgba(255,255,255,0.1);
+        transform: translateY(-2px);
+    }
+
+    .page-btn.active {
+        background: var(--accent-blue);
+        border-color: var(--accent-blue);
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--muted);
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <div>
+        <h1 style="font-size: 32px; font-weight: 900; margin-bottom: 8px;">Alert Management</h1>
+        <p class="text-muted">Monitor and manage all coastal alerts in real-time</p>
+    </div>
+    <div style="display: flex; gap: 15px;">
+        <button class="btn btn-secondary" onclick="refreshAlerts()">
+            <span id="refresh-icon">🔄</span> Refresh
+        </button>
+        <button class="btn btn-primary" onclick="exportAlerts()">
+            📊 Export Data
+        </button>
+    </div>
+</div>
+
+<!-- Filters Panel -->
+<div class="filters-panel">
+    <div class="filter-group">
+        <label class="filter-label">Threat Type</label>
+        <select class="filter-select" id="threat-filter" onchange="applyFilters()">
+            <option value="">All Types</option>
+            <option value="tsunami">Tsunami</option>
+            <option value="storm">Storm/Cyclone</option>
+            <option value="pollution">Pollution</option>
+            <option value="erosion">Coastal Erosion</option>
+            <option value="flood">Flood</option>
+            <option value="weather">Weather</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label class="filter-label">Risk Level</label>
+        <select class="filter-select" id="risk-filter" onchange="applyFilters()">
+            <option value="">All Levels</option>
+            <option value="Watch">Watch</option>
+            <option value="Warning">Warning</option>
+            <option value="Red Alert">Red Alert</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label class="filter-label">Location</label>
+        <select class="filter-select" id="location-filter" onchange="applyFilters()">
+            <option value="">All Locations</option>
+            <option value="Kandla">Kandla Port</option>
+            <option value="Mundra">Mundra Port</option>
+            <option value="Dwarka">Dwarka</option>
+            <option value="Porbandar">Porbandar</option>
+            <option value="Veraval">Veraval</option>
+            <option value="Diu">Diu</option>
+            <option value="Bhavnagar">Bhavnagar</option>
+            <option value="Hazira">Hazira</option>
+        </select>
+    </div>
+
+    <div class="filter-group">
+        <label class="filter-label">Status</label>
+        <select class="filter-select" id="status-filter" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="pending">Pending</option>
+        </select>
+    </div>
+
+    <button class="btn btn-secondary" onclick="clearFilters()">Clear Filters</button>
+</div>
+
+<!-- Alerts Container -->
+<div class="panel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="font-weight: 800; font-size: 20px;">
+            Active Alerts <span id="alerts-count" class="text-muted text-sm">(0)</span>
+        </h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <span class="text-muted text-sm">Sort by:</span>
+            <select class="filter-select" id="sort-filter" onchange="applyFilters()" style="min-width: 120px;">
+                <option value="timestamp-desc">Newest First</option>
+                <option value="timestamp-asc">Oldest First</option>
+                <option value="risk-desc">High Risk First</option>
+                <option value="location-asc">Location A-Z</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="alerts-container" id="alerts-container">
+        <div class="text-center" style="padding: 40px;">
+            <div class="loading"></div>
+            <div class="text-muted" style="margin-top: 15px;">Loading alerts...</div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination" style="display: none;">
+        <!-- Pagination buttons will be inserted here -->
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let allAlerts = [];
+    let filteredAlerts = [];
+    let currentPage = 1;
+    const alertsPerPage = 10;
+
+    // Load all alerts
+    async function loadAlerts() {
+        try {
+            const response = await fetch('/api/alerts?limit=200');
+            allAlerts = await response.json();
+            filteredAlerts = [...allAlerts];
+            applyFilters();
+        } catch (error) {
+            console.error('Error loading alerts:', error);
+            showEmptyState('Error loading alerts. Please try again.');
+        }
+    }
+
+    function applyFilters() {
+        const threatFilter = document.getElementById('threat-filter').value.toLowerCase();
+        const riskFilter = document.getElementById('risk-filter').value;
+        const locationFilter = document.getElementById('location-filter').value.toLowerCase();
+        const statusFilter = document.getElementById('status-filter').value;
+        const sortFilter = document.getElementById('sort-filter').value;
+
+        // Apply filters
+        filteredAlerts = allAlerts.filter(alert => {
+            const matchesThreat = !threatFilter || alert.threat_type.toLowerCase().includes(threatFilter);
+            const matchesRisk = !riskFilter || alert.risk_level === riskFilter;
+            const matchesLocation = !locationFilter || alert.location.toLowerCase().includes(locationFilter);
+            const matchesStatus = !statusFilter || 
+                (statusFilter === 'acknowledged' && alert.acknowledged) ||
+                (statusFilter === 'pending' && !alert.acknowledged);
+            
+            return matchesThreat && matchesRisk && matchesLocation && matchesStatus;
+        });
+
+        // Apply sorting
+        filteredAlerts.sort((a, b) => {
+            switch (sortFilter) {
+                case 'timestamp-desc':
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                case 'timestamp-asc':
+                    return new Date(a.timestamp) - new Date(b.timestamp);
+                case 'risk-desc':
+                    const riskOrder = {'Red Alert': 3, 'Warning': 2, 'Watch': 1};
+                    return (riskOrder[b.risk_level] || 0) - (riskOrder[a.risk_level] || 0);
+                case 'location-asc':
+                    return a.location.localeCompare(b.location);
+                default:
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+            }
+        });
+
+        currentPage = 1;
+        displayAlerts();
+        updatePagination();
+    }
+
+    function displayAlerts() {
+        const container = document.getElementById('alerts-container');
+        const start = (currentPage - 1) * alertsPerPage;
+        const end = start + alertsPerPage;
+        const pageAlerts = filteredAlerts.slice(start, end);
+
+        document.getElementById('alerts-count').textContent = `(${filteredAlerts.length})`;
+
+        if (pageAlerts.length === 0) {
+            showEmptyState();
+            return;
+        }
+
+        container.innerHTML = pageAlerts.map(alert => {
+            const riskClass = alert.risk_level.toLowerCase().replace(' ', '-');
+            const riskColor = alert.risk_level === 'Red Alert' ? 'var(--accent-red)' :
+                             alert.risk_level === 'Warning' ? 'var(--accent-yellow)' : 'var(--accent-blue)';
+            
+            let details = '';
+            try {
+                const detailsObj = JSON.parse(alert.details || '{}');
+                details = Object.entries(detailsObj)
+                    .map(([key, value]) => `${key}: ${value}`)
+                    .join('\n');
+            } catch (e) {
+                details = alert.details || 'No additional details';
+            }
+
+            return `
+                <div class="alert-item" style="border-left: 4px solid ${riskColor};">
+                    <div class="alert-header">
+                        <div>
+                            <div class="alert-title">${alert.threat_type}</div>
+                            <div class="alert-meta">
+                                <span>📍 ${alert.location}</span>
+                                <span>🕒 ${formatDate(alert.timestamp)} ${formatTime(alert.timestamp)}</span>
+                                <span>📊 Value: ${alert.value ? alert.value.toFixed(1) : 'N/A'}</span>
+                                ${alert.acknowledged ? '<span style="color: var(--accent-green);">✅ Acknowledged</span>' : ''}
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+                            <div class="risk-badge risk-${riskClass}">${alert.risk_level}</div>
+                            <div class="text-muted text-xs">${formatRelativeTime(alert.timestamp)}</div>
+                        </div>
+                    </div>
+
+                    <div class="alert-details" style="display: none;" id="details-${alert.id}">
+                        <strong>Alert Details:</strong><br/>
+                        <pre style="white-space: pre-wrap; margin-top: 10px;">${details}</pre>
+                        <div style="margin-top: 10px;">
+                            <strong>Coordinates:</strong> ${alert.latitude.toFixed(4)}, ${alert.longitude.toFixed(4)}
+                        </div>
+                    </div>
+
+                    <div class="alert-actions">
+                        <button class="btn btn-secondary" onclick="toggleDetails(${alert.id})" style="font-size: 14px;">
+                            <span id="toggle-text-${alert.id}">Show Details</span>
+                        </button>
+                        ${!alert.acknowledged ? `
+                            <button class="btn btn-primary" onclick="acknowledgeAlert(${alert.id})" style="font-size: 14px;">
+                                Acknowledge
+                            </button>
+                        ` : ''}
+                        <button class="btn" onclick="viewOnMap(${alert.latitude}, ${alert.longitude})" 
+                                style="background: var(--accent-green); color: white; font-size: 14px;">
+                            View on Map
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function showEmptyState(message = 'No alerts found matching the current filters.') {
+        const container = document.getElementById('alerts-container');
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">🔍</div>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 10px;">No Alerts Found</div>
+                <div>${message}</div>
+            </div>
+        `;
+    }
+
+    function updatePagination() {
+        const pagination = document.getElementById('pagination');
+        const totalPages = Math.ceil(filteredAlerts.length / alertsPerPage);
+
+        if (totalPages <= 1) {
+            pagination.style.display = 'none';
+            return;
+        }
+
+        pagination.style.display = 'flex';
+
+        let paginationHTML = '';
+        
+        // Previous button
+        if (currentPage > 1) {
+            paginationHTML += `<a href="#" class="page-btn" onclick="changePage(${currentPage - 1})">← Previous</a>`;
+        }
+
+        // Page numbers
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            const activeClass = i === currentPage ? 'active' : '';
+            paginationHTML += `<a href="#" class="page-btn ${activeClass}" onclick="changePage(${i})">${i}</a>`;
+        }
+
+        // Next button
+        if (currentPage < totalPages) {
+            paginationHTML += `<a href="#" class="page-btn" onclick="changePage(${currentPage + 1})">Next →</a>`;
+        }
+
+        pagination.innerHTML = paginationHTML;
+    }
+
+    function changePage(page) {
+        currentPage = page;
+        displayAlerts();
+        updatePagination();
+        window.scrollTo(0, 0);
+    }
+
+    function toggleDetails(alertId) {
+        const detailsEl = document.getElementById(`details-${alertId}`);
+        const toggleText = document.getElementById(`toggle-text-${alertId}`);
+        
+        if (detailsEl.style.display === 'none') {
+            detailsEl.style.display = 'block';
+            toggleText.textContent = 'Hide Details';
+        } else {
+            detailsEl.style.display = 'none';
+            toggleText.textContent = 'Show Details';
+        }
+    }
+
+    async function acknowledgeAlert(alertId) {
+        try {
+            const response = await fetch(`/api/alerts/${alertId}/acknowledge`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (response.ok) {
+                // Update the alert in our local data
+                const alertIndex = allAlerts.findIndex(alert => alert.id === alertId);
+                if (alertIndex !== -1) {
+                    allAlerts[alertIndex].acknowledged = true;
+                    applyFilters(); // Refresh display
+                }
+                
+                // Show success message
+                showToast('Alert acknowledged successfully', 'success');
+            } else {
+                showToast('Failed to acknowledge alert', 'error');
+            }
+        } catch (error) {
+            console.error('Error acknowledging alert:', error);
+            showToast('Error acknowledging alert', 'error');
+        }
+    }
+
+    function viewOnMap(lat, lon) {
+        // For now, open Google Maps. In production, you'd integrate with your mapping system
+        const url = `https://www.google.com/maps?q=${lat},${lon}&z=15`;
+        window.open(url, '_blank');
+    }
+
+    function refreshAlerts() {
+        const refreshIcon = document.getElementById('refresh-icon');
+        refreshIcon.style.animation = 'spin 1s linear infinite';
+        
+        loadAlerts().then(() => {
+            refreshIcon.style.animation = '';
+            showToast('Alerts refreshed', 'success');
+        });
+    }
+
+    function clearFilters() {
+        document.getElementById('threat-filter').value = '';
+        document.getElementById('risk-filter').value = '';
+        document.getElementById('location-filter').value = '';
+        document.getElementById('status-filter').value = '';
+        document.getElementById('sort-filter').value = 'timestamp-desc';
+        applyFilters();
+    }
+
+    function exportAlerts() {
+        const csvContent = [
+            ['ID', 'Threat Type', 'Location', 'Risk Level', 'Timestamp', 'Value', 'Acknowledged'],
+            ...filteredAlerts.map(alert => [
+                alert.id,
+                alert.threat_type,
+                alert.location,
+                alert.risk_level,
+                alert.timestamp,
+                alert.value || '',
+                alert.acknowledged ? 'Yes' : 'No'
+            ])
+        ].map(row => row.map(field => `"${field}"`).join(',')).join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `coastal_alerts_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `flash-message flash-${type}`;
+        toast.textContent = message;
+        
+        const container = document.querySelector('.flash-messages') || createToastContainer();
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.className = 'flash-messages';
+        document.body.appendChild(container);
+        return container;
+    }
+
+    // Socket.IO event handlers
+    socket.on('new_alert', (alert) => {
+        allAlerts.unshift(alert);
+        applyFilters();
+        showToast(`New ${alert.risk_level}: ${alert.threat_type}`, 'info');
+    });
+
+    socket.on('alerts_update', (alerts) => {
+        allAlerts = alerts;
+        applyFilters();
+    });
+
+    socket.on('alert_acknowledged', (data) => {
+        const alertIndex = allAlerts.findIndex(alert => alert.id === data.alert_id);
+        if (alertIndex !== -1) {
+            allAlerts[alertIndex].acknowledged = true;
+            applyFilters();
+        }
+    });
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAlerts();
+    });
+</script>
+{% endblock %}

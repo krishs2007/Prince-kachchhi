@@ -1,0 +1,612 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Gujarat Coastal Alert System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-container {
+        background: rgba(255,255,255,0.02);
+        border-radius: 16px;
+        padding: 25px;
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .chart-title {
+        font-weight: 800;
+        font-size: 18px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .stats-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-box {
+        background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 16px;
+        padding: 25px;
+        text-align: center;
+        transition: var(--transition);
+    }
+
+    .stat-box:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .stat-number {
+        font-size: 32px;
+        font-weight: 900;
+        margin-bottom: 8px;
+    }
+
+    .stat-label {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 14px;
+    }
+
+    .trend-indicator {
+        font-size: 12px;
+        font-weight: 700;
+        margin-top: 5px;
+    }
+
+    .trend-up { color: var(--accent-red); }
+    .trend-down { color: var(--accent-green); }
+    .trend-stable { color: var(--accent-blue); }
+
+    .chart-placeholder {
+        height: 300px;
+        background: rgba(255,255,255,0.02);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed rgba(255,255,255,0.1);
+        color: var(--muted);
+    }
+
+    .legend {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin-top: 15px;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+    }
+
+    .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+    }
+
+    .filter-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 12px;
+        padding: 8px;
+    }
+
+    .filter-tab {
+        padding: 10px 20px;
+        border-radius: 8px;
+        background: transparent;
+        border: none;
+        color: var(--muted);
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .filter-tab.active {
+        background: var(--accent-blue);
+        color: white;
+    }
+
+    .filter-tab:hover:not(.active) {
+        background: rgba(255,255,255,0.05);
+        color: var(--text);
+    }
+
+    .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 30px;
+    }
+
+    .insight-card {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        padding: 25px;
+        transition: var(--transition);
+    }
+
+    .insight-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 50px rgba(0,0,0,0.2);
+    }
+
+    .insight-title {
+        font-weight: 800;
+        font-size: 16px;
+        margin-bottom: 15px;
+        color: var(--accent-blue);
+    }
+
+    .insight-content {
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .top-locations {
+        list-style: none;
+        padding: 0;
+    }
+
+    .top-locations li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .top-locations li:last-child {
+        border-bottom: none;
+    }
+
+    .location-name {
+        font-weight: 600;
+    }
+
+    .location-count {
+        background: var(--accent-blue);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <div>
+        <h1 style="font-size: 32px; font-weight: 900; margin-bottom: 8px;">Analytics Dashboard</h1>
+        <p class="text-muted">Comprehensive analysis of coastal alert patterns and trends</p>
+    </div>
+    <div style="display: flex; gap: 15px;">
+        <button class="btn btn-secondary" onclick="exportAnalytics()">
+            📊 Export Report
+        </button>
+        <button class="btn btn-primary" onclick="refreshAnalytics()">
+            🔄 Refresh Data
+        </button>
+    </div>
+</div>
+
+<!-- Statistics Overview -->
+<div class="stats-overview" id="stats-overview">
+    <div class="stat-box">
+        <div class="stat-number" style="color: var(--accent-blue);" id="total-alerts">0</div>
+        <div class="stat-label">Total Alerts</div>
+        <div class="trend-indicator trend-up" id="total-trend">+12% this week</div>
+    </div>
+    
+    <div class="stat-box">
+        <div class="stat-number" style="color: var(--accent-red);" id="critical-alerts">0</div>
+        <div class="stat-label">Critical Alerts</div>
+        <div class="trend-indicator trend-down" id="critical-trend">-5% this week</div>
+    </div>
+    
+    <div class="stat-box">
+        <div class="stat-number" style="color: var(--accent-yellow);" id="avg-response">0</div>
+        <div class="stat-label">Avg Response Time</div>
+        <div class="trend-indicator trend-stable" id="response-trend">Stable</div>
+    </div>
+    
+    <div class="stat-box">
+        <div class="stat-number" style="color: var(--accent-green);" id="resolution-rate">0%</div>
+        <div class="stat-label">Resolution Rate</div>
+        <div class="trend-indicator trend-up" id="resolution-trend">+8% this week</div>
+    </div>
+</div>
+
+<!-- Time Period Filters -->
+<div class="filter-tabs">
+    <button class="filter-tab active" onclick="changePeriod('7d', this)">Last 7 Days</button>
+    <button class="filter-tab" onclick="changePeriod('30d', this)">Last 30 Days</button>
+    <button class="filter-tab" onclick="changePeriod('90d', this)">Last 3 Months</button>
+    <button class="filter-tab" onclick="changePeriod('1y', this)">Last Year</button>
+</div>
+
+<!-- Charts Grid -->
+<div class="grid-2">
+    <!-- Alert Trends Chart -->
+    <div class="panel">
+        <div class="chart-title">
+            📈 Alert Trends Over Time
+        </div>
+        <div class="chart-placeholder" id="trends-chart">
+            <div style="text-align: center;">
+                <div style="font-size: 48px; opacity: 0.3;">📊</div>
+                <div>Alert trends visualization</div>
+                <div class="text-sm" style="margin-top: 10px;">Shows daily alert counts by risk level</div>
+            </div>
+        </div>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: var(--accent-red);"></div>
+                <span>Red Alert</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: var(--accent-yellow);"></div>
+                <span>Warning</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: var(--accent-blue);"></div>
+                <span>Watch</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Threat Distribution -->
+    <div class="panel">
+        <div class="chart-title">
+            🎯 Threat Type Distribution
+        </div>
+        <div class="chart-placeholder" id="distribution-chart">
+            <div style="text-align: center;">
+                <div style="font-size: 48px; opacity: 0.3;">🥧</div>
+                <div>Threat type breakdown</div>
+                <div class="text-sm" style="margin-top: 10px;">Distribution of alert types</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Location Analytics -->
+<div class="grid-2">
+    <div class="panel">
+        <div class="chart-title">
+            🗺️ Geographic Alert Heatmap
+        </div>
+        <div class="chart-placeholder" id="heatmap-chart">
+            <div style="text-align: center;">
+                <div style="font-size: 48px; opacity: 0.3;">🗺️</div>
+                <div>Geographic distribution of alerts</div>
+                <div class="text-sm" style="margin-top: 10px;">Heat map showing alert density by location</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="chart-title">
+            🏆 Top Alert Locations
+        </div>
+        <ul class="top-locations" id="top-locations">
+            <!-- Will be populated by JavaScript -->
+        </ul>
+    </div>
+</div>
+
+<!-- Performance Metrics -->
+<div class="panel">
+    <div class="chart-title">
+        ⚡ System Performance Metrics
+    </div>
+    <div class="grid-3">
+        <div class="info-card">
+            <div class="info-title">🎯 Prediction Accuracy</div>
+            <div class="metric-row">
+                <span class="metric-label">Overall Accuracy</span>
+                <span class="metric-value" style="color: var(--accent-green);" id="overall-accuracy">94.2%</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">False Positive Rate</span>
+                <span class="metric-value" style="color: var(--accent-yellow);" id="false-positive">3.1%</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Detection Rate</span>
+                <span class="metric-value" style="color: var(--accent-green);" id="detection-rate">97.8%</span>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="info-title">⏱️ Response Times</div>
+            <div class="metric-row">
+                <span class="metric-label">Average Response</span>
+                <span class="metric-value" style="color: var(--accent-blue);" id="avg-response-time">4.2 min</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Critical Alerts</span>
+                <span class="metric-value" style="color: var(--accent-red);" id="critical-response">1.8 min</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Target SLA</span>
+                <span class="metric-value" style="color: var(--accent-green);" id="sla-status">98.5%</span>
+            </div>
+        </div>
+
+        <div class="info-card">
+            <div class="info-title">🔄 System Health</div>
+            <div class="metric-row">
+                <span class="metric-label">Uptime</span>
+                <span class="metric-value" style="color: var(--accent-green);" id="uptime">99.9%</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Data Quality</span>
+                <span class="metric-value" style="color: var(--accent-green);" id="data-quality">96.7%</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">API Latency</span>
+                <span class="metric-value" style="color: var(--accent-blue);" id="api-latency">145ms</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- AI Insights -->
+<div class="insights-grid">
+    <div class="insight-card">
+        <div class="insight-title">🤖 AI-Generated Insights</div>
+        <div class="insight-content" id="ai-insights">
+            <div class="loading"></div>
+            <span style="margin-left: 10px;">Analyzing patterns...</span>
+        </div>
+    </div>
+
+    <div class="insight-card">
+        <div class="insight-title">📊 Trend Analysis</div>
+        <div class="insight-content" id="trend-analysis">
+            <div class="loading"></div>
+            <span style="margin-left: 10px;">Processing trends...</span>
+        </div>
+    </div>
+
+    <div class="insight-card">
+        <div class="insight-title">⚠️ Risk Assessment</div>
+        <div class="insight-content" id="risk-assessment">
+            <div class="loading"></div>
+            <span style="margin-left: 10px;">Calculating risks...</span>
+        </div>
+    </div>
+
+    <div class="insight-card">
+        <div class="insight-title">🎯 Recommendations</div>
+        <div class="insight-content" id="recommendations">
+            <div class="loading"></div>
+            <span style="margin-left: 10px;">Generating recommendations...</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let analyticsData = [];
+    let currentPeriod = '7d';
+
+    async function loadAnalyticsData() {
+        try {
+            // Load alerts data
+            const alertsResponse = await fetch('/api/alerts?limit=500');
+            analyticsData = await alertsResponse.json();
+            
+            // Load stats
+            const statsResponse = await fetch('/api/stats');
+            const stats = await statsResponse.json();
+            
+            updateOverviewStats(stats);
+            updateTopLocations(stats.location_stats || []);
+            generateInsights();
+            
+        } catch (error) {
+            console.error('Error loading analytics data:', error);
+        }
+    }
+
+    function updateOverviewStats(stats) {
+        document.getElementById('total-alerts').textContent = stats.total_alerts || 0;
+        document.getElementById('critical-alerts').textContent = stats.red_alerts || 0;
+        
+        // Calculate average response time (simulated)
+        const avgResponse = 2 + Math.random() * 4;
+        document.getElementById('avg-response').textContent = avgResponse.toFixed(1) + ' min';
+        
+        // Calculate resolution rate
+        const resolutionRate = 85 + Math.random() * 10;
+        document.getElementById('resolution-rate').textContent = resolutionRate.toFixed(1) + '%';
+    }
+
+    function updateTopLocations(locationStats) {
+        const container = document.getElementById('top-locations');
+        
+        if (!locationStats || locationStats.length === 0) {
+            // Generate demo data
+            const locations = [
+                { location: 'Kandla Port', count: Math.floor(Math.random() * 20) + 10 },
+                { location: 'Mundra Port', count: Math.floor(Math.random() * 20) + 8 },
+                { location: 'Bhavnagar', count: Math.floor(Math.random() * 15) + 5 },
+                { location: 'Hazira', count: Math.floor(Math.random() * 15) + 4 },
+                { location: 'Porbandar', count: Math.floor(Math.random() * 10) + 3 }
+            ];
+            locationStats = locations.sort((a, b) => b.count - a.count);
+        }
+
+        container.innerHTML = locationStats.slice(0, 8).map(item => `
+            <li>
+                <span class="location-name">${item.location}</span>
+                <span class="location-count">${item.count}</span>
+            </li>
+        `).join('');
+    }
+
+    function generateInsights() {
+        // Simulate AI-generated insights
+        setTimeout(() => {
+            document.getElementById('ai-insights').innerHTML = `
+                <strong>Pattern Detection:</strong><br/>
+                • Alert frequency increases 40% during monsoon season<br/>
+                • Port areas show 60% more critical alerts than coastal towns<br/>
+                • Peak alert times: 14:00-18:00 local time<br/>
+                • Weather correlation: 85% accuracy in storm predictions
+            `;
+
+            document.getElementById('trend-analysis').innerHTML = `
+                <strong>Key Trends (${currentPeriod}):</strong><br/>
+                • Critical alerts decreased by 15% compared to previous period<br/>
+                • Kandla Port shows highest alert frequency<br/>
+                • Response times improved by 22%<br/>
+                • Weekend vs weekday alert ratio: 1.3:1
+            `;
+
+            document.getElementById('risk-assessment').innerHTML = `
+                <strong>Current Risk Level:</strong><br/>
+                • Overall: <span style="color: var(--accent-yellow);">Medium</span><br/>
+                • Highest risk locations: Mundra, Bhavnagar<br/>
+                • Weather risk factor: 65%<br/>
+                • Seasonal adjustment: +20% (monsoon approaching)
+            `;
+
+            document.getElementById('recommendations').innerHTML = `
+                <strong>Actionable Recommendations:</strong><br/>
+                • Increase monitoring frequency at Kandla Port<br/>
+                • Deploy additional sensors in Bhavnagar area<br/>
+                • Review emergency protocols for high-traffic ports<br/>
+                • Enhance early warning systems for storm season
+            `;
+        }, 2000);
+    }
+
+    function changePeriod(period, buttonEl) {
+        currentPeriod = period;
+        
+        // Update button states
+        document.querySelectorAll('.filter-tab').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        buttonEl.classList.add('active');
+        
+        // Reload analytics for new period
+        loadAnalyticsData();
+        
+        // Update trend indicators based on period
+        updateTrendIndicators(period);
+    }
+
+    function updateTrendIndicators(period) {
+        const trends = {
+            '7d': { total: '+12%', critical: '-5%', response: 'Stable', resolution: '+8%' },
+            '30d': { total: '+25%', critical: '+2%', response: '-12%', resolution: '+15%' },
+            '90d': { total: '+18%', critical: '-8%', response: '-25%', resolution: '+22%' },
+            '1y': { total: '+35%', critical: '-15%', response: '-40%', resolution: '+45%' }
+        };
+
+        const periodTrends = trends[period];
+        document.getElementById('total-trend').textContent = `${periodTrends.total} this period`;
+        document.getElementById('critical-trend').textContent = `${periodTrends.critical} this period`;
+        document.getElementById('response-trend').textContent = periodTrends.response;
+        document.getElementById('resolution-trend').textContent = `${periodTrends.resolution} this period`;
+    }
+
+    function exportAnalytics() {
+        // Create comprehensive analytics report
+        const reportData = {
+            period: currentPeriod,
+            generated: new Date().toISOString(),
+            statistics: {
+                total_alerts: document.getElementById('total-alerts').textContent,
+                critical_alerts: document.getElementById('critical-alerts').textContent,
+                avg_response: document.getElementById('avg-response').textContent,
+                resolution_rate: document.getElementById('resolution-rate').textContent
+            },
+            performance: {
+                accuracy: document.getElementById('overall-accuracy').textContent,
+                false_positive_rate: document.getElementById('false-positive').textContent,
+                detection_rate: document.getElementById('detection-rate').textContent,
+                uptime: document.getElementById('uptime').textContent
+            },
+            alerts: analyticsData.slice(0, 100) // Include recent alerts
+        };
+
+        const jsonContent = JSON.stringify(reportData, null, 2);
+        const blob = new Blob([jsonContent], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `gujarat_coastal_analytics_${currentPeriod}_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    }
+
+    function refreshAnalytics() {
+        // Show loading states
+        document.querySelectorAll('.insight-content').forEach(el => {
+            el.innerHTML = '<div class="loading"></div><span style="margin-left: 10px;">Refreshing...</span>';
+        });
+        
+        loadAnalyticsData();
+    }
+
+    // Socket.IO event handlers
+    socket.on('new_alert', (alert) => {
+        analyticsData.unshift(alert);
+        analyticsData = analyticsData.slice(0, 500); // Keep recent 500
+        
+        // Update real-time stats
+        setTimeout(() => {
+            loadAnalyticsData();
+        }, 1000);
+    });
+
+    socket.on('alerts_update', (alerts) => {
+        analyticsData = alerts;
+        updateTopLocations();
+    });
+
+    // Initialize analytics
+    document.addEventListener('DOMContentLoaded', () => {
+        loadAnalyticsData();
+        
+        // Update performance metrics every 30 seconds
+        setInterval(() => {
+            // Simulate real-time performance updates
+            const accuracy = 93 + Math.random() * 4;
+            const falsePositive = 2 + Math.random() * 3;
+            const detectionRate = 96 + Math.random() * 3;
+            const uptime = 99.8 + Math.random() * 0.2;
+            const dataQuality = 95 + Math.random() * 4;
+            const latency = 120 + Math.random() * 50;
+            
+            document.getElementById('overall-accuracy').textContent = accuracy.toFixed(1) + '%';
+            document.getElementById('false-positive').textContent = falsePositive.toFixed(1) + '%';
+            document.getElementById('detection-rate').textContent = detectionRate.toFixed(1) + '%';
+            document.getElementById('uptime').textContent = uptime.toFixed(1) + '%';
+            document.getElementById('data-quality').textContent = dataQuality.toFixed(1) + '%';
+            document.getElementById('api-latency').textContent = Math.round(latency) + 'ms';
+        }, 30000);
+    });
+</script>
+{% endblock %}

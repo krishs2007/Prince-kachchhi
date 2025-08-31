@@ -1,0 +1,660 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Gujarat Coastal Alert System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 30px;
+    }
+
+    .settings-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .settings-nav-item {
+        padding: 15px 20px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.05);
+        color: var(--muted);
+        text-decoration: none;
+        font-weight: 600;
+        transition: var(--transition);
+        cursor: pointer;
+    }
+
+    .settings-nav-item:hover {
+        background: rgba(255,255,255,0.05);
+        color: var(--text);
+    }
+
+    .settings-nav-item.active {
+        background: var(--accent-blue);
+        color: white;
+        border-color: var(--accent-blue);
+    }
+
+    .settings-content {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        padding: 30px;
+    }
+
+    .settings-section {
+        display: none;
+    }
+
+    .settings-section.active {
+        display: block;
+    }
+
+    .form-group {
+        margin-bottom: 25px;
+    }
+
+    .form-label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 10px;
+        color: var(--text);
+        font-size: 14px;
+        transition: var(--transition);
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: var(--accent-blue);
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+    }
+
+    .form-checkbox {
+        margin-right: 10px;
+    }
+
+    .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+    }
+
+    .save-btn {
+        background: var(--accent-green);
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .save-btn:hover {
+        background: #059669;
+        transform: translateY(-2px);
+    }
+
+    .danger-zone {
+        background: rgba(239,68,68,0.05);
+        border: 1px solid rgba(239,68,68,0.2);
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 30px;
+    }
+
+    .danger-title {
+        color: var(--accent-red);
+        font-weight: 800;
+        margin-bottom: 15px;
+    }
+
+    .api-key-display {
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 10px;
+        font-family: 'Monaco', monospace;
+        font-size: 12px;
+        word-break: break-all;
+        margin-top: 10px;
+    }
+
+    @media (max-width: 880px) {
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+        .settings-nav {
+            flex-direction: row;
+            overflow-x: auto;
+        }
+        .settings-nav-item {
+            white-space: nowrap;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 30px;">
+    <h1 style="font-size: 32px; font-weight: 900; margin-bottom: 8px;">Settings</h1>
+    <p class="text-muted">Manage your account and system preferences</p>
+</div>
+
+<div class="settings-grid">
+    <!-- Settings Navigation -->
+    <div class="settings-nav">
+        <div class="settings-nav-item active" onclick="showSection('profile', this)">
+            👤 Profile Settings
+        </div>
+        <div class="settings-nav-item" onclick="showSection('notifications', this)">
+            🔔 Notifications
+        </div>
+        <div class="settings-nav-item" onclick="showSection('alerts', this)">
+            ⚠️ Alert Preferences
+        </div>
+        <div class="settings-nav-item" onclick="showSection('security', this)">
+            🔒 Security
+        </div>
+        <div class="settings-nav-item" onclick="showSection('system', this)">
+            ⚙️ System Config
+        </div>
+    </div>
+
+    <!-- Settings Content -->
+    <div class="settings-content">
+        <!-- Profile Settings -->
+        <div class="settings-section active" id="profile-section">
+            <h3 style="font-weight: 800; margin-bottom: 20px;">Profile Information</h3>
+            
+            <form id="profile-form">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" class="form-input" value="{{ current_user.name or '' }}" id="user-name">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" value="{{ current_user.username }}" readonly style="opacity: 0.6;">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Phone Number</label>
+                    <input type="tel" class="form-input" value="{{ current_user.phone_number }}" id="user-phone">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Role</label>
+                    <input type="text" class="form-input" value="{{ current_user.role or 'User' }}" readonly style="opacity: 0.6;">
+                </div>
+
+                <button type="submit" class="save-btn">Save Changes</button>
+            </form>
+        </div>
+
+        <!-- Notification Settings -->
+        <div class="settings-section" id="notifications-section">
+            <h3 style="font-weight: 800; margin-bottom: 20px;">Notification Preferences</h3>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="sms-notifications" checked>
+                <label for="sms-notifications">SMS Notifications</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="email-notifications">
+                <label for="email-notifications">Email Notifications</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="push-notifications" checked>
+                <label for="push-notifications">Browser Push Notifications</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="weekend-notifications">
+                <label for="weekend-notifications">Weekend Notifications</label>
+            </div>
+
+            <h4 style="font-weight: 700; margin: 25px 0 15px 0;">Notification Schedule</h4>
+            
+            <div class="form-group">
+                <label class="form-label">Quiet Hours Start</label>
+                <input type="time" class="form-input" value="22:00" id="quiet-start">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Quiet Hours End</label>
+                <input type="time" class="form-input" value="07:00" id="quiet-end">
+            </div>
+
+            <button class="save-btn" onclick="saveNotificationSettings()">Save Notification Settings</button>
+        </div>
+
+        <!-- Alert Preferences -->
+        <div class="settings-section" id="alerts-section">
+            <h3 style="font-weight: 800; margin-bottom: 20px;">Alert Preferences</h3>
+            
+            <h4 style="font-weight: 700; margin-bottom: 15px;">Risk Level Notifications</h4>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="alert-watch">
+                <label for="alert-watch">Watch Level Alerts</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="alert-warning" checked>
+                <label for="alert-warning">Warning Level Alerts</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="alert-critical" checked>
+                <label for="alert-critical">Critical/Red Alerts</label>
+            </div>
+
+            <h4 style="font-weight: 700; margin: 25px 0 15px 0;">Threat Type Filters</h4>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="threat-tsunami" checked>
+                <label for="threat-tsunami">Tsunami Warnings</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="threat-storm" checked>
+                <label for="threat-storm">Storm/Cyclone Alerts</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="threat-pollution">
+                <label for="threat-pollution">Pollution Alerts</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="threat-erosion">
+                <label for="threat-erosion">Coastal Erosion</label>
+            </div>
+
+            <button class="save-btn" onclick="saveAlertSettings()">Save Alert Preferences</button>
+        </div>
+
+        <!-- Security Settings -->
+        <div class="settings-section" id="security-section">
+            <h3 style="font-weight: 800; margin-bottom: 20px;">Security Settings</h3>
+            
+            <form id="password-form">
+                <div class="form-group">
+                    <label class="form-label">Current Password</label>
+                    <input type="password" class="form-input" id="current-password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">New Password</label>
+                    <input type="password" class="form-input" id="new-password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-input" id="confirm-password" required>
+                </div>
+
+                <button type="submit" class="save-btn">Update Password</button>
+            </form>
+
+            <h4 style="font-weight: 700; margin: 30px 0 15px 0;">Security Options</h4>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="two-factor">
+                <label for="two-factor">Enable Two-Factor Authentication</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="login-alerts" checked>
+                <label for="login-alerts">Login Notification Alerts</label>
+            </div>
+        </div>
+
+        <!-- System Configuration -->
+        <div class="settings-section" id="system-section">
+            <h3 style="font-weight: 800; margin-bottom: 20px;">System Configuration</h3>
+            
+            {% if current_user.role == 'admin' %}
+            <div class="form-group">
+                <label class="form-label">API Refresh Interval (minutes)</label>
+                <input type="number" class="form-input" value="5" min="1" max="60" id="refresh-interval">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Alert Retention Period (days)</label>
+                <input type="number" class="form-input" value="30" min="7" max="365" id="retention-period">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Tomorrow.io API Key</label>
+                <input type="password" class="form-input" placeholder="Enter API key..." id="api-key">
+                <div class="text-muted text-sm" style="margin-top: 5px;">
+                    Current key: {{ '****' + config.TOMORROW_API_KEY[-4:] if config.TOMORROW_API_KEY else 'Not configured' }}
+                </div>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="auto-cleanup" checked>
+                <label for="auto-cleanup">Automatic Alert Cleanup</label>
+            </div>
+            
+            <div class="checkbox-group">
+                <input type="checkbox" class="form-checkbox" id="demo-mode">
+                <label for="demo-mode">Demo Mode (Simulated Data)</label>
+            </div>
+
+            <button class="save-btn" onclick="saveSystemSettings()">Save System Settings</button>
+            
+            {% else %}
+            <div class="text-center text-muted" style="padding: 40px;">
+                <div style="font-size: 48px; opacity: 0.3;">🔒</div>
+                <div>System configuration requires administrator privileges</div>
+            </div>
+            {% endif %}
+
+            <!-- Danger Zone -->
+            <div class="danger-zone">
+                <div class="danger-title">⚠️ Danger Zone</div>
+                <p class="text-muted" style="margin-bottom: 15px;">
+                    These actions are irreversible and may affect system functionality.
+                </p>
+                
+                {% if current_user.role == 'admin' %}
+                <button class="btn" onclick="clearAllAlerts()" 
+                        style="background: var(--accent-red); color: white; margin-right: 10px;">
+                    Clear All Alerts
+                </button>
+                <button class="btn" onclick="resetSystem()" 
+                        style="background: var(--accent-red); color: white;">
+                    Reset System
+                </button>
+                {% else %}
+                <button class="btn" onclick="deleteAccount()" 
+                        style="background: var(--accent-red); color: white;">
+                    Delete Account
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showSection(sectionName, element) {
+        // Hide all sections
+        document.querySelectorAll('.settings-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        
+        // Remove active class from all nav items
+        document.querySelectorAll('.settings-nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        // Show selected section
+        document.getElementById(sectionName + '-section').classList.add('active');
+        element.classList.add('active');
+    }
+
+    // Profile form handler
+    document.getElementById('profile-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            name: document.getElementById('user-name').value,
+            phone_number: document.getElementById('user-phone').value
+        };
+
+        try {
+            const response = await fetch('/api/update_profile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                showToast('Profile updated successfully', 'success');
+            } else {
+                showToast('Failed to update profile', 'error');
+            }
+        } catch (error) {
+            showToast('Error updating profile', 'error');
+        }
+    });
+
+    // Password form handler
+    document.getElementById('password-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+        
+        if (newPassword !== confirmPassword) {
+            showToast('Passwords do not match', 'error');
+            return;
+        }
+        
+        if (newPassword.length < 8) {
+            showToast('Password must be at least 8 characters', 'error');
+            return;
+        }
+
+        const formData = {
+            current_password: document.getElementById('current-password').value,
+            new_password: newPassword
+        };
+
+        try {
+            const response = await fetch('/api/change_password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) {
+                showToast('Password updated successfully', 'success');
+                document.getElementById('password-form').reset();
+            } else {
+                const error = await response.json();
+                showToast(error.message || 'Failed to update password', 'error');
+            }
+        } catch (error) {
+            showToast('Error updating password', 'error');
+        }
+    });
+
+    function saveNotificationSettings() {
+        const settings = {
+            sms_notifications: document.getElementById('sms-notifications').checked,
+            email_notifications: document.getElementById('email-notifications').checked,
+            push_notifications: document.getElementById('push-notifications').checked,
+            weekend_notifications: document.getElementById('weekend-notifications').checked,
+            quiet_hours_start: document.getElementById('quiet-start').value,
+            quiet_hours_end: document.getElementById('quiet-end').value
+        };
+
+        // Save to localStorage for demo purposes
+        localStorage.setItem('notification_settings', JSON.stringify(settings));
+        showToast('Notification settings saved', 'success');
+    }
+
+    function saveAlertSettings() {
+        const settings = {
+            watch_alerts: document.getElementById('alert-watch').checked,
+            warning_alerts: document.getElementById('alert-warning').checked,
+            critical_alerts: document.getElementById('alert-critical').checked,
+            tsunami_alerts: document.getElementById('threat-tsunami').checked,
+            storm_alerts: document.getElementById('threat-storm').checked,
+            pollution_alerts: document.getElementById('threat-pollution').checked,
+            erosion_alerts: document.getElementById('threat-erosion').checked
+        };
+
+        localStorage.setItem('alert_settings', JSON.stringify(settings));
+        showToast('Alert preferences saved', 'success');
+    }
+
+    function saveSystemSettings() {
+        const settings = {
+            refresh_interval: document.getElementById('refresh-interval').value,
+            retention_period: document.getElementById('retention-period').value,
+            api_key: document.getElementById('api-key').value,
+            auto_cleanup: document.getElementById('auto-cleanup').checked,
+            demo_mode: document.getElementById('demo-mode').checked
+        };
+
+        // In a real application, this would make an API call to update server settings
+        console.log('System settings:', settings);
+        showToast('System settings saved', 'success');
+    }
+
+    function clearAllAlerts() {
+        if (confirm('Are you sure you want to clear ALL alerts? This action cannot be undone.')) {
+            fetch('/api/alerts/clear_all', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast('All alerts cleared', 'success');
+                } else {
+                    showToast('Failed to clear alerts', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error clearing alerts', 'error');
+            });
+        }
+    }
+
+    function resetSystem() {
+        if (confirm('Are you sure you want to reset the entire system? This will clear all data and cannot be undone.')) {
+            if (confirm('This is your final warning. All alerts, users, and settings will be deleted. Continue?')) {
+                fetch('/api/system/reset', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => {
+                    if (response.ok) {
+                        showToast('System reset successful', 'success');
+                        setTimeout(() => {
+                            window.location.href = '/login';
+                        }, 2000);
+                    } else {
+                        showToast('Failed to reset system', 'error');
+                    }
+                })
+                .catch(error => {
+                    showToast('Error resetting system', 'error');
+                });
+            }
+        }
+    }
+
+    function deleteAccount() {
+        if (confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+            fetch('/api/delete_account', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    showToast('Account deleted successfully', 'success');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                } else {
+                    showToast('Failed to delete account', 'error');
+                }
+            })
+            .catch(error => {
+                showToast('Error deleting account', 'error');
+            });
+        }
+    }
+
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `flash-message flash-${type}`;
+        toast.textContent = message;
+        toast.style.position = 'fixed';
+        toast.style.top = '20px';
+        toast.style.right = '20px';
+        toast.style.zIndex = '1000';
+        toast.style.padding = '15px 20px';
+        toast.style.borderRadius = '10px';
+        toast.style.backdropFilter = 'blur(20px)';
+        toast.style.border = '1px solid rgba(255,255,255,0.1)';
+        
+        const colors = {
+            success: { bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', color: 'var(--accent-green)' },
+            error: { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', color: 'var(--accent-red)' },
+            info: { bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', color: 'var(--accent-blue)' }
+        };
+        
+        const style = colors[type] || colors.info;
+        toast.style.background = style.bg;
+        toast.style.borderColor = style.border;
+        toast.style.color = style.color;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+            // Load notification settings
+        const notificationSettings = JSON.parse(localStorage.getItem('notification_settings') || '{}');
+        Object.keys(notificationSettings).forEach(key => {
+            const element = document.getElementById(key.replace('_', '-'));
+            if (element) {
+                if (element.type === 'checkbox') {
+                    element.checked = notificationSettings[key];
+                } else {
+                    element.value = notificationSettings[key];
+                }
+            }
+        });
+
+        // Load alert settings
+        const alertSettings = JSON.parse(localStorage.getItem('alert_settings') || '{}');
+        Object.keys(alertSettings).forEach(key => {
+            const element = document.getElementById(key.replace('_', '-'));
+            if (element && element.type === 'checkbox') {
+                element.checked = alertSettings[key];
+            }
+        });
+    
+</script>
+{% endblock %}

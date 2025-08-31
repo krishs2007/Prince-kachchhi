@@ -1,0 +1,745 @@
+{% extends "base.html" %}
+
+{% block title %}Live Monitoring - Gujarat Coastal Alert System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .monitoring-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .info-card {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-radius: 16px;
+        padding: 20px;
+        transition: var(--transition);
+        position: relative;
+        overflow: hidden;
+    }
+
+    .info-card:hover {
+        transform: translateY(-3px);
+        background: rgba(255,255,255,0.04);
+    }
+
+    .info-card::after {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: -2px;
+        right: -2px;
+        bottom: -2px;
+        background: linear-gradient(45deg, var(--accent-blue), var(--accent-green), var(--accent-yellow));
+        border-radius: 16px;
+        opacity: 0;
+        z-index: -1;
+        transition: opacity 0.3s;
+    }
+
+    .info-card:hover::after {
+        opacity: 0.1;
+    }
+
+    .info-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 800;
+        font-size: 18px;
+        margin-bottom: 15px;
+    }
+
+    .status-pill {
+        position: absolute;
+        right: 15px;
+        top: 15px;
+        width: 16px;
+        height: 16px;
+        border-radius: 8px;
+        animation: pulse-dot 2s infinite;
+    }
+
+    .status-green { background: var(--accent-green); }
+    .status-yellow { background: var(--accent-yellow); }
+    .status-red { background: var(--accent-red); }
+
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .metric-row:last-child {
+        border-bottom: none;
+    }
+
+    .metric-label {
+        color: var(--muted);
+        font-weight: 500;
+    }
+
+    .metric-value {
+        font-weight: 700;
+    }
+
+    .live-data-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .real-time-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(16,185,129,0.1);
+        border: 1px solid rgba(16,185,129,0.3);
+        border-radius: 20px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--accent-green);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .real-time-dot {
+        width: 8px;
+        height: 8px;
+        background: var(--accent-green);
+        border-radius: 50%;
+        animation: pulse-dot 1s infinite;
+    }
+
+    .location-selector {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px;
+        padding: 15px 20px;
+        color: var(--text);
+        font-weight: 600;
+        margin-bottom: 20px;
+        width: 100%;
+    }
+
+    .quick-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+        flex-wrap: wrap;
+    }
+
+    .action-btn {
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 8px 16px;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .action-btn:hover {
+        background: rgba(255,255,255,0.1);
+        transform: translateY(-2px);
+    }
+
+    .alert-timeline {
+        max-height: 400px;
+        overflow-y: auto;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.02);
+        padding: 15px;
+    }
+
+    .timeline-item {
+        display: flex;
+        gap: 15px;
+        padding: 15px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        position: relative;
+    }
+
+    .timeline-item:last-child {
+        border-bottom: none;
+    }
+
+    .timeline-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-top: 5px;
+        flex-shrink: 0;
+    }
+
+    .timeline-content {
+        flex: 1;
+    }
+
+    .timeline-title {
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .timeline-meta {
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    @media (max-width: 880px) {
+        .monitoring-grid {
+            grid-template-columns: 1fr;
+        }
+        .live-data-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+    <div>
+        <h1 style="font-size: 32px; font-weight: 900; margin-bottom: 8px;">Live Monitoring</h1>
+        <p class="text-muted">Real-time coastal conditions and alert monitoring</p>
+    </div>
+    <div class="real-time-indicator">
+        <div class="real-time-dot"></div>
+        Live Data
+    </div>
+</div>
+
+<!-- Location Selector -->
+<select class="location-selector" id="location-selector" onchange="filterByLocation()">
+    <option value="">🌊 All Gujarat Coastal Locations</option>
+    <option value="Kandla">Kandla Port</option>
+    <option value="Mundra">Mundra Port</option>
+    <option value="Dwarka">Dwarka</option>
+    <option value="Porbandar">Porbandar</option>
+    <option value="Veraval">Veraval</option>
+    <option value="Diu">Diu</option>
+    <option value="Bhavnagar">Bhavnagar</option>
+    <option value="Alang">Alang</option>
+    <option value="Dahej">Dahej</option>
+    <option value="Hazira">Hazira</option>
+</select>
+
+<!-- Live Data Grid -->
+<div class="live-data-grid">
+    <div class="info-card">
+        <div class="info-title">🌬️ Meteorological</div>
+        <div class="status-pill status-yellow"></div>
+        <div class="metric-row">
+            <span class="metric-label">Wind Speed</span>
+            <span class="metric-value" id="wind-speed">18 km/h</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">6h Forecast</span>
+            <span class="metric-value" style="color: var(--accent-yellow);" id="wind-forecast">32 km/h</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Pressure</span>
+            <span class="metric-value" id="pressure">1013.2 hPa</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">AI Confidence</span>
+            <span class="metric-value" style="color: var(--accent-green);" id="weather-confidence">89%</span>
+        </div>
+    </div>
+
+    <div class="info-card">
+        <div class="info-title">🌊 Oceanographic</div>
+        <div class="status-pill status-red"></div>
+        <div class="metric-row">
+            <span class="metric-label">Sea Level</span>
+            <span class="metric-value" style="color: var(--accent-yellow);" id="sea-level">2.1m</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">6h Forecast</span>
+            <span class="metric-value" style="color: var(--accent-red);" id="sea-forecast">2.8m</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Wave Height</span>
+            <span class="metric-value" id="wave-height">1.8m</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">AI Confidence</span>
+            <span class="metric-value" style="color: var(--accent-green);" id="ocean-confidence">92%</span>
+        </div>
+    </div>
+
+    <div class="info-card">
+        <div class="info-title">🌡️ Thermal</div>
+        <div class="status-pill status-yellow"></div>
+        <div class="metric-row">
+            <span class="metric-label">Sea Surface Temp</span>
+            <span class="metric-value" style="color: var(--accent-blue);" id="sst">27.2°C</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Anomaly</span>
+            <span class="metric-value" style="color: var(--accent-yellow);" id="temp-anomaly">+1.5°C</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Heatwave Status</span>
+            <span class="metric-value" style="color: var(--accent-yellow);" id="heatwave">Moderate</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">AI Confidence</span>
+            <span class="metric-value" style="color: var(--accent-green);" id="thermal-confidence">85%</span>
+        </div>
+    </div>
+
+    <div class="info-card">
+        <div class="info-title">💧 Water Quality</div>
+        <div class="status-pill status-yellow"></div>
+        <div class="metric-row">
+            <span class="metric-label">Chlorophyll-a</span>
+            <span class="metric-value" style="color: var(--accent-yellow);" id="chlorophyll">12.5 mg/m³</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Turbidity</span>
+            <span class="metric-value" id="turbidity">4.2 NTU</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">Trend</span>
+            <span class="metric-value" style="color: var(--accent-yellow);" id="quality-trend">Increasing ↗</span>
+        </div>
+        <div class="metric-row">
+            <span class="metric-label">AI Confidence</span>
+            <span class="metric-value" style="color: var(--accent-green);" id="quality-confidence">87%</span>
+        </div>
+    </div>
+</div>
+
+<!-- Main Monitoring Panel -->
+<div class="monitoring-grid">
+    <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3 style="font-weight: 800; font-size: 20px;">🌊 Live Coastal Monitoring</h3>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="refreshData()" id="refresh-btn">
+                    🔄 Refresh
+                </button>
+                <button class="btn btn-primary" onclick="simulateAlert()">
+                    ⚡ Simulate Alert
+                </button>
+            </div>
+        </div>
+
+        <!-- Geomorphology Section -->
+        <div class="info-card" style="margin-bottom: 15px;">
+            <div class="info-title">🧭 Geomorphology Predictions</div>
+            <div class="status-pill status-yellow"></div>
+            <div class="metric-row">
+                <span class="metric-label">Shoreline Change Rate</span>
+                <span class="metric-value" style="color: var(--accent-yellow);" id="shoreline-rate">-1.2 cm/month</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Erosion Trend</span>
+                <span class="metric-value" style="color: var(--accent-red);" id="erosion-trend">Eroding</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Beach Slope</span>
+                <span class="metric-value" id="beach-slope">0.045</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Intertidal Coverage</span>
+                <span class="metric-value" id="intertidal">78%</span>
+            </div>
+        </div>
+
+        <!-- Human Activity Section -->
+        <div class="info-card" style="margin-bottom: 15px;">
+            <div class="info-title">🚢 Human Activity Monitoring</div>
+            <div class="status-pill status-yellow"></div>
+            <div class="metric-row">
+                <span class="metric-label">Ship Density</span>
+                <span class="metric-value" style="color: var(--accent-blue);" id="ship-density">45 vessels</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Dumping Hotspots</span>
+                <span class="metric-value" style="color: var(--accent-yellow);" id="dumping-spots">2 detected</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Outfall Monitoring</span>
+                <span class="metric-value" id="outfall-status">6/8 active</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Last Activity</span>
+                <span class="metric-value" id="last-activity">1 hour ago</span>
+            </div>
+        </div>
+
+        <!-- Temporal Context Section -->
+        <div class="info-card">
+            <div class="info-title">⏱️ Temporal Context</div>
+            <div class="status-pill status-green"></div>
+            <div class="metric-row">
+                <span class="metric-label">Current Hour</span>
+                <span class="metric-value" id="current-hour">16:00</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Tide Status</span>
+                <span class="metric-value" style="color: var(--accent-blue);" id="tide-status">Rising</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Season</span>
+                <span class="metric-value" id="season">Post-Monsoon</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Day Type</span>
+                <span class="metric-value" id="day-type">Weekend</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Timeline -->
+    <div class="panel">
+        <h3 style="font-weight: 800; font-size: 20px; margin-bottom: 20px;">
+            📋 Alert Timeline
+            <span class="text-muted text-sm" id="timeline-count">(0 events)</span>
+        </h3>
+
+        <div class="quick-actions">
+            <button class="action-btn" onclick="filterTimeline('all')">All Events</button>
+            <button class="action-btn" onclick="filterTimeline('Red Alert')">Critical</button>
+            <button class="action-btn" onclick="filterTimeline('Warning')">Warnings</button>
+            <button class="action-btn" onclick="filterTimeline('Watch')">Watch</button>
+        </div>
+
+        <div class="alert-timeline" id="alert-timeline">
+            <div class="text-center text-muted">
+                <div class="loading"></div>
+                <div style="margin-top: 10px;">Loading timeline...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Emergency Actions Panel -->
+<div class="panel" style="background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(239,68,68,0.05)); border-color: rgba(239,68,68,0.2);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="font-weight: 800; font-size: 20px; color: var(--accent-red);">🚨 Emergency Actions</h3>
+        <div style="font-size: 14px; color: var(--muted);">
+            Last Emergency: <span id="last-emergency">No recent emergencies</span>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+        <button class="btn" onclick="triggerEmergency('evacuation')" 
+                style="background: var(--accent-red); color: white; padding: 15px;">
+            🚨 Emergency Evacuation
+        </button>
+        <button class="btn" onclick="triggerEmergency('communication')" 
+                style="background: var(--accent-yellow); color: white; padding: 15px;">
+            📢 Mass Communication
+        </button>
+        <button class="btn" onclick="triggerEmergency('rescue')" 
+                style="background: var(--accent-blue); color: white; padding: 15px;">
+            🚁 Deploy Rescue Teams
+        </button>
+        <button class="btn" onclick="triggerEmergency('coordination')" 
+                style="background: var(--accent-green); color: white; padding: 15px;">
+            🏢 Agency Coordination
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let timelineData = [];
+    let currentTimelineFilter = 'all';
+
+    // Load monitoring data
+    async function loadMonitoringData() {
+        try {
+            const response = await fetch('/api/alerts?limit=50');
+            timelineData = await response.json();
+            updateTimeline();
+            updateMetrics();
+        } catch (error) {
+            console.error('Error loading monitoring data:', error);
+        }
+    }
+
+    function updateTimeline() {
+        const container = document.getElementById('alert-timeline');
+        const filteredData = currentTimelineFilter === 'all' 
+            ? timelineData 
+            : timelineData.filter(alert => alert.risk_level === currentTimelineFilter);
+
+        document.getElementById('timeline-count').textContent = `(${filteredData.length} events)`;
+
+        if (filteredData.length === 0) {
+            container.innerHTML = '<div class="text-center text-muted">No events found</div>';
+            return;
+        }
+
+        container.innerHTML = filteredData.slice(0, 20).map(alert => {
+            const dotColor = alert.risk_level === 'Red Alert' ? 'var(--accent-red)' :
+                           alert.risk_level === 'Warning' ? 'var(--accent-yellow)' : 'var(--accent-blue)';
+            
+            return `
+                <div class="timeline-item">
+                    <div class="timeline-dot" style="background: ${dotColor};"></div>
+                    <div class="timeline-content">
+                        <div class="timeline-title">${alert.threat_type}</div>
+                        <div class="timeline-meta">
+                            📍 ${alert.location} • 
+                            🕒 ${formatRelativeTime(alert.timestamp)} • 
+                            📊 ${alert.risk_level}
+                            ${alert.value ? ` • Value: ${alert.value.toFixed(1)}` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updateMetrics() {
+        // Simulate real-time data updates
+        const now = new Date();
+        
+        // Update temporal context
+        document.getElementById('current-hour').textContent = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+        
+        // Simulate varying metrics
+        const windBase = 15 + Math.sin(now.getTime() / 60000) * 10;
+        document.getElementById('wind-speed').textContent = Math.round(windBase) + ' km/h';
+        document.getElementById('wind-forecast').textContent = Math.round(windBase * 1.8) + ' km/h';
+        
+        const seaBase = 2.0 + Math.sin(now.getTime() / 120000) * 0.5;
+        document.getElementById('sea-level').textContent = seaBase.toFixed(1) + 'm';
+        document.getElementById('sea-forecast').textContent = (seaBase + 0.7).toFixed(1) + 'm';
+        
+        // Update other metrics with slight variations
+        document.getElementById('wave-height').textContent = (1.5 + Math.random() * 0.6).toFixed(1) + 'm';
+        document.getElementById('pressure').textContent = (1013 + (Math.random() - 0.5) * 10).toFixed(1) + ' hPa';
+        document.getElementById('sst').textContent = (27 + (Math.random() - 0.5) * 2).toFixed(1) + '°C';
+        document.getElementById('temp-anomaly').textContent = '+' + (1.2 + Math.random() * 0.6).toFixed(1) + '°C';
+        document.getElementById('chlorophyll').textContent = (12 + Math.random() * 3).toFixed(1) + ' mg/m³';
+        document.getElementById('turbidity').textContent = (4 + Math.random()).toFixed(1) + ' NTU';
+        
+        // Update ship density
+        document.getElementById('ship-density').textContent = Math.floor(40 + Math.random() * 20) + ' vessels';
+        document.getElementById('dumping-spots').textContent = Math.floor(Math.random() * 4) + ' detected';
+    }
+
+    function filterTimeline(filter) {
+        currentTimelineFilter = filter;
+        updateTimeline();
+        
+        // Update button states
+        document.querySelectorAll('.action-btn').forEach(btn => {
+            btn.style.background = 'rgba(255,255,255,0.05)';
+            btn.style.color = 'var(--text)';
+        });
+        
+        event.target.style.background = 'var(--accent-blue)';
+        event.target.style.color = 'white';
+    }
+
+    function filterByLocation() {
+        const selectedLocation = document.getElementById('location-selector').value;
+        if (selectedLocation) {
+            // Filter timeline by location
+            const filteredByLocation = timelineData.filter(alert => 
+                alert.location.toLowerCase().includes(selectedLocation.toLowerCase())
+            );
+            
+            // Update timeline with location-specific data
+            const container = document.getElementById('alert-timeline');
+            container.innerHTML = filteredByLocation.slice(0, 20).map(alert => {
+                const dotColor = alert.risk_level === 'Red Alert' ? 'var(--accent-red)' :
+                               alert.risk_level === 'Warning' ? 'var(--accent-yellow)' : 'var(--accent-blue)';
+                
+                return `
+                    <div class="timeline-item">
+                        <div class="timeline-dot" style="background: ${dotColor};"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">${alert.threat_type}</div>
+                            <div class="timeline-meta">
+                                📍 ${alert.location} • 
+                                🕒 ${formatRelativeTime(alert.timestamp)} • 
+                                📊 ${alert.risk_level}
+                                ${alert.value ? ` • Value: ${alert.value.toFixed(1)}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('timeline-count').textContent = `(${filteredByLocation.length} events)`;
+        } else {
+            updateTimeline();
+        }
+    }
+
+    function refreshData() {
+        const refreshBtn = document.getElementById('refresh-btn');
+        refreshBtn.innerHTML = '🔄 <div class="loading" style="display: inline-block; width: 16px; height: 16px;"></div>';
+        
+        loadMonitoringData().then(() => {
+            refreshBtn.innerHTML = '🔄 Refresh';
+            showToast('Data refreshed successfully', 'success');
+        });
+    }
+
+    function simulateAlert() {
+        const threats = ['High Tide Warning', 'Storm Activity', 'Pollution Spike', 'Coastal Erosion'];
+        const locations = ['Kandla Port', 'Mundra Port', 'Bhavnagar', 'Hazira', 'Dwarka'];
+        const riskLevels = ['Watch', 'Warning', 'Red Alert'];
+        
+        const simulatedAlert = {
+            threat_type: threats[Math.floor(Math.random() * threats.length)],
+            location: locations[Math.floor(Math.random() * locations.length)],
+            latitude: 21.0 + Math.random() * 2,
+            longitude: 69.0 + Math.random() * 4,
+            value: Math.random() * 100,
+            timestamp: new Date().toISOString()
+        };
+
+        fetch('/api/ingest', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(simulatedAlert)
+        })
+        .then(response => response.json())
+        .then(data => {
+            showToast(`Simulated alert created: ${data.risk_level}`, 'info');
+        })
+        .catch(error => {
+            console.error('Error creating simulated alert:', error);
+            showToast('Failed to create simulated alert', 'error');
+        });
+    }
+
+    function triggerEmergency(type) {
+        const emergencyTypes = {
+            'evacuation': 'Emergency Evacuation Protocol',
+            'communication': 'Mass Communication System',
+            'rescue': 'Rescue Team Deployment',
+            'coordination': 'Inter-Agency Coordination'
+        };
+
+        const confirmed = confirm(`Are you sure you want to trigger: ${emergencyTypes[type]}?\n\nThis will send notifications to all registered users.`);
+        
+        if (confirmed) {
+            // Create emergency alert
+            const emergencyAlert = {
+                threat_type: 'Emergency Protocol',
+                location: 'Gujarat Coastline',
+                latitude: 21.5,
+                longitude: 70.5,
+                value: 100,
+                details: JSON.stringify({
+                    emergency_type: type,
+                    protocol: emergencyTypes[type],
+                    triggered_by: 'System Operator',
+                    timestamp: new Date().toISOString()
+                })
+            };
+
+            fetch('/api/ingest', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(emergencyAlert)
+            })
+            .then(response => response.json())
+            .then(data => {
+                showToast(`Emergency protocol activated: ${emergencyTypes[type]}`, 'error');
+                document.getElementById('last-emergency').textContent = `${emergencyTypes[type]} - ${formatTime(new Date())}`;
+            })
+            .catch(error => {
+                console.error('Error triggering emergency:', error);
+                showToast('Failed to trigger emergency protocol', 'error');
+            });
+        }
+    }
+
+    function showToast(message, type = 'info') {
+        // Create toast notification
+        const toast = document.createElement('div');
+        toast.className = `flash-message flash-${type}`;
+        toast.textContent = message;
+        toast.style.position = 'fixed';
+        toast.style.top = '20px';
+        toast.style.right = '20px';
+        toast.style.zIndex = '1000';
+        toast.style.padding = '15px 20px';
+        toast.style.borderRadius = '10px';
+        toast.style.backdropFilter = 'blur(20px)';
+        toast.style.border = '1px solid rgba(255,255,255,0.1)';
+        
+        if (type === 'success') {
+            toast.style.background = 'rgba(16,185,129,0.1)';
+            toast.style.borderColor = 'rgba(16,185,129,0.3)';
+            toast.style.color = 'var(--accent-green)';
+        } else if (type === 'error') {
+            toast.style.background = 'rgba(239,68,68,0.1)';
+            toast.style.borderColor = 'rgba(239,68,68,0.3)';
+            toast.style.color = 'var(--accent-red)';
+        } else {
+            toast.style.background = 'rgba(59,130,246,0.1)';
+            toast.style.borderColor = 'rgba(59,130,246,0.3)';
+            toast.style.color = 'var(--accent-blue)';
+        }
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Socket.IO event handlers
+    socket.on('new_alert', (alert) => {
+        timelineData.unshift(alert);
+        timelineData = timelineData.slice(0, 100); // Keep only recent 100
+        updateTimeline();
+        updateMetrics();
+    });
+
+    socket.on('alerts_update', (alerts) => {
+        timelineData = alerts;
+        updateTimeline();
+    });
+
+    // Initialize page
+    document.addEventListener('DOMContentLoaded', () => {
+        loadMonitoringData();
+        
+        // Set URL parameter if location is specified
+        const urlParams = new URLSearchParams(window.location.search);
+        const locationParam = urlParams.get('location');
+        if (locationParam) {
+            document.getElementById('location-selector').value = locationParam;
+            filterByLocation();
+        }
+        
+        // Update metrics every 10 seconds
+        setInterval(updateMetrics, 10000);
+        
+        // Update timeline every 30 seconds
+        setInterval(() => {
+            loadMonitoringData();
+        }, 30000);
+    });
+</script>
+{% endblock %}

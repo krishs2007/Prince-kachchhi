@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>{% if form_type == 'register' %}Register{% else %}Login{% endif %} - Gujarat Coastal Alert System</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg: #0a1628;
+            --card: rgba(255,255,255,0.03);
+            --text: #e8f4f8;
+            --muted: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Inter", system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0a1628 0%, #1e293b 50%, #0f172a 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 50%, rgba(59,130,246,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(16,185,129,0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .auth-container {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 40px;
+            width: 100%;
+            max-width: 420px;
+            position: relative;
+            z-index: 1;
+            animation: slideUp 0.8s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo-box {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #3b82f6, #10b981);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: 0 10px 40px rgba(59,130,246,0.3);
+        }
+
+        .auth-title {
+            font-size: 28px;
+            font-weight: 900;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .auth-subtitle {
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 16px;
+            transition: var(--transition);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+            background: rgba(255,255,255,0.08);
+        }
+
+        .form-input::placeholder {
+            color: var(--muted);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-blue), #2563eb);
+            color: white;
+            box-shadow: 0 10px 30px rgba(59,130,246,0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(59,130,246,0.4);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--accent-blue);
+            border: 2px solid var(--accent-blue);
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-blue);
+            color: white;
+        }
+
+        .error-message {
+            background: rgba(239,68,68,0.1);
+            border: 1px solid rgba(239,68,68,0.3);
+            color: var(--accent-red);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            animation: shake 0.5s ease-in-out;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .toggle-form {
+            text-align: center;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .toggle-link {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .toggle-link:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+
+        .back-home {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 10px 15px;
+            color: var(--text);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .back-home:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateY(-2px);
+        }
+
+        .requirements {
+            background: rgba(255,255,255,0.02);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+
+        .requirements h4 {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        .requirements ul {
+            font-size: 12px;
+            color: var(--muted);
+            padding-left: 20px;
+        }
+
+        .requirements li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('dashboard') }}" class="back-home">← Back to Dashboard</a>
+
+    <div class="auth-container">
+        <div class="auth-header">
+            <div class="logo-box">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3 21l6-6" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M7 17l4-4" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="17" cy="7" r="4" stroke="#fff" stroke-width="2" fill="rgba(59,130,246,0.3)"/>
+                </svg>
+            </div>
+            <div class="auth-title">
+                {% if form_type == 'register' %}Create Account{% else %}Welcome Back{% endif %}
+            </div>
+            <div class="auth-subtitle">
+                {% if form_type == 'register' %}Join the Gujarat Coastal Alert System{% else %}Sign in to your account{% endif %}
+            </div>
+        </div>
+
+        {% if error %}
+            <div class="error-message">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            {% if form_type == 'register' %}
+                <div class="form-group">
+                    <label class="form-label" for="name">Full Name</label>
+                    <input type="text" id="name" name="name" class="form-input" 
+                           placeholder="Enter your full name" required>
+                </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label class="form-label" for="username">Username</label>
+                <input type="text" id="username" name="username" class="form-input" 
+                       placeholder="Enter your username" required>
+            </div>
+
+            {% if form_type == 'register' %}
+                <div class="form-group">
+                    <label class="form-label" for="phone_number">Phone Number</label>
+                    <input type="tel" id="phone_number" name="phone_number" class="form-input" 
+                           placeholder="+91 9876543210" required>
+                </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" name="password" class="form-input" 
+                       placeholder="Enter your password" required>
+            </div>
+
+            {% if form_type == 'register' %}
+                <div class="requirements">
+                    <h4>Password Requirements:</h4>
+                    <ul>
+                        <li>At least 8 characters long</li>
+                        <li>Include uppercase and lowercase letters</li>
+                        <li>Include at least one number</li>
+                    </ul>
+                </div>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 25px;">
+                {% if form_type == 'register' %}Create Account{% else %}Sign In{% endif %}
+            </button>
+        </form>
+
+        <div class="toggle-form">
+            {% if form_type == 'register' %}
+                <p class="text-muted">Already have an account? 
+                    <a href="{{ url_for('login') }}" class="toggle-link">Sign in here</a>
+                </p>
+            {% else %}
+                <p class="text-muted">Don't have an account? 
+                    <a href="{{ url_for('register') }}" class="toggle-link">Create one here</a>
+                </p>
+            {% endif %}
+        </div>
+
+        {% if form_type == 'login' %}
+            <div style="text-align: center; margin-top: 20px; padding: 15px; background: rgba(59,130,246,0.1); border-radius: 10px;">
+                <div class="text-sm font-bold" style="color: var(--accent-blue);">Demo Credentials</div>
+                <div class="text-xs text-muted" style="margin-top: 5px;">
+                    Username: <strong>admin</strong> | Password: <strong>password123</strong>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // Form validation for registration
+        // {% if form_type == 'register' %}
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const phone = document.getElementById('phone_number').value;
+            
+            // Basic password validation
+            if (password.length < 8) {
+                e.preventDefault();
+                alert('Password must be at least 8 characters long');
+                return;
+            }
+            
+            // Basic phone validation
+            if (!/^\+?[\d\s-()]+$/.test(phone)) {
+                e.preventDefault();
+                alert('Please enter a valid phone number');
+                return;
+            }
+        });
+        // {% endif %}
+
+        // Auto-focus first input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelector('.form-input').focus();
+        });
+    </script>
+</body>
+</html>
